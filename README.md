@@ -21,6 +21,13 @@ Bu sistem, hem akademik test ortamı hem de gerçek zamanlı gözetim ve kontrol
 
 ---
 
+## 📘 Ek Bilgilendirme
+
+Bu projede kullanılan teknolojiler ve kurulum tercihleri hakkında detaylı teknik notlar için:  
+📄 [00-tekno-rehber.md](./docs/00-tekno-rehber.md)
+
+---
+
 ## 🧱 Yapı ve Prensipler
 
 Bu proje aşağıdaki yazılım geliştirme prensiplerini uygular:
@@ -50,6 +57,7 @@ Geliştirme sürecinde her katkıdan önce mutlaka kontrol edilmelidir.
 
 ```bash
 ayris/
+├── docs/                # Gereksinim & mimari belgeler
 ├── backend/             # FastAPI tabanlı simülasyon & kontrol API'si
 │   ├── main.py
 │   ├── models/          # Veri sınıfları (IHA, görev, engel)
@@ -57,10 +65,12 @@ ayris/
 ├── frontend/            # React + TypeScript UI
 │   ├── public/
 │   └── src/
-│       ├── components/
+│       ├── components/  # UI bileşenleri (ör: Button, Panel, DroneCard)
 │       ├── types/       # Tip tanımları (TypeScript arayüzleri)
 │       └── websocket/   # WebSocket işleyicileri
-├── docs/                # Gereksinim & mimari belgeler
+├── simulators/          # Asenkron çalışma ve test süreçleri için gerekli simülatörler
+└── .gitignore
+└── CONTRIBUTING.md
 └── README.md
 ```
 

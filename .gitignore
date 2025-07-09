@@ -9,14 +9,33 @@ __pycache__/
 .env
 .env.*
 
-# NODE / FRONTEND
-frontend/node_modules/
-frontend/build/
-frontend/dist/
-frontend/.env
-frontend/.env.*
+# REACT TAILWINDCSS VITE
+## Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# IDE / OS
+node_modules
+dist
+dist-ssr
+*.local
+
+## Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+## IDE / OS
 .idea/
 .vscode/
 .DS_Store
