@@ -70,6 +70,10 @@ const Map = () => {
     );
   };
 
+  const removeDrone = (id: number) => {
+    setDrones(drones.filter(d => d.id !== id));
+  };
+
   return (
     <div className="flex h-screen w-full">
       {/* Menü */}
@@ -87,13 +91,21 @@ const Map = () => {
           <ul className="space-y-1">
             {drones.map((drone) => (
               <li key={drone.id} className="flex justify-between items-center">
-                {drone.name}
-                <button
-                  className="text-sm text-blue-600 hover:underline"
-                  onClick={() => assignTask(drone.id)}
-                >
-                  Görev Ata
-                </button>
+                <div>{drone.name}</div>
+                <div className="space-x-2">
+                  <button
+                    className="text-sm text-blue-600 hover:underline"
+                    onClick={() => assignTask(drone.id)}
+                  >
+                    Görev Ata
+                  </button>
+                  <button
+                    className="text-sm text-red-600 hover:underline"
+                    onClick={() => removeDrone(drone.id)}
+                  >
+                    Sil
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
