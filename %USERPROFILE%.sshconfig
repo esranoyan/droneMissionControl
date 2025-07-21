@@ -1,0 +1,5 @@
+Host github.com
+  HostName github.com
+  User git
+  IdentityFile C:\Users\esra\.ssh\id_ed25519
+  IdentitiesOnly yes

@@ -8,6 +8,10 @@ __pycache__/
 *.log
 .env
 .env.*
+.ssh/
+*.key
+*.pem
+*.pub
 
 # REACT TAILWINDCSS VITE
 ## Logs
