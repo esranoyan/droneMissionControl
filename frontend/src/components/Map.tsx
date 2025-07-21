@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -10,7 +11,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "",
 });
 
-// Yeni MilStdIcon sınıfı – metin tabanlı ikon üretir
+// Metin tabanlı ikon sınıfı
 class MilStdIcon {
   text: string;
 
@@ -39,41 +40,102 @@ class MilStdIcon {
   }
 }
 
-const Map = () => {
-  const ankara: [number, number] = [39.92077, 32.85411]; // Harita merkezi
-  const golbasi: [number, number] = [39.7982, 32.8057];  // Gölbaşı
-  const kizilay: [number, number] = [39.9208, 32.8541];  // Kızılay
-  const etimesgut_havaalani: [number, number] = [39.9514, 32.6874];
+interface Drone {
+  id: number;
+  name: string;
+  position: [number, number];
+  task?: string;
+}
 
-  // Marker ikonları
-  const droneIconGölbaşı = new MilStdIcon("🟦 ♦️ SUAS ISR").icon;
-  const droneIconKızılay = new MilStdIcon("🟦 ♦️ SUAS ISR").icon;
-  const droneIconEtimesgut = new MilStdIcon("🟦 ♦️ SUAS ISR").icon;
+const Map = () => {
+  const ankara: [number, number] = [39.92077, 32.85411];
+  const [drones, setDrones] = useState<Drone[]>([]);
+  const [nextId, setNextId] = useState(1);
+
+  const addDrone = () => {
+    const newDrone: Drone = {
+      id: nextId,
+      name: `İHA ${nextId}`,
+      position: [ankara[0] + Math.random() * 0.02 - 0.01, ankara[1] + Math.random() * 0.02 - 0.01],
+    };
+    setDrones([...drones, newDrone]);
+    setNextId(nextId + 1);
+  };
+
+  const assignTask = (id: number) => {
+    const task = prompt("Görev girin:");
+    if (!task) return;
+    setDrones(
+      drones.map((d) => (d.id === id ? { ...d, task } : d))
+    );
+  };
 
   return (
-    <div className="h-screen w-full">
-      <MapContainer center={ankara} zoom={13} className="h-full w-full z-0">
-        <TileLayer
-          attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+    <div className="flex h-screen w-full">
+      {/* Menü */}
+      <div className="w-1/4 bg-gray-100 p-4 overflow-y-auto">
+        <h2 className="text-xl font-bold mb-4">Kontrol Paneli</h2>
+        <button
+          className="bg-blue-500 text-white px-4 py-2 rounded mb-4"
+          onClick={addDrone}
+        >
+          Unsur Ekle
+        </button>
 
-        {/* Gölbaşı Drone */}
-        <Marker position={golbasi} icon={droneIconGölbaşı}>
-          <Popup>Görevdeki İHA <br /> Konum: Gölbaşı</Popup>
-        </Marker>
+        <div className="mb-6">
+          <h3 className="font-semibold mb-2">Ekli Unsurlar</h3>
+          <ul className="space-y-1">
+            {drones.map((drone) => (
+              <li key={drone.id} className="flex justify-between items-center">
+                {drone.name}
+                <button
+                  className="text-sm text-blue-600 hover:underline"
+                  onClick={() => assignTask(drone.id)}
+                >
+                  Görev Ata
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
 
-        {/* Kızılay Drone */}
-        <Marker position={kizilay} icon={droneIconKızılay}>
-          <Popup>Beklemede duran İHA <br /> Konum: Kızılay</Popup>
-        </Marker>
+        <div>
+          <h3 className="font-semibold mb-2">Atanmış Görevler</h3>
+          <ul className="space-y-1">
+            {drones.filter(d => d.task).map((drone) => (
+              <li key={drone.id}>
+                {drone.name}: <span className="italic">{drone.task}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
 
-        {/*Etimesgut Havaalanı Drone*/}
-      <Marker position={etimesgut_havaalani} icon={droneIconEtimesgut}>
-        <Popup>Görevini tamamlamış İHA <br/> Konum: Etimesgut Havaalanı</Popup>
-      </Marker>
+      {/* Harita */}
+      <div className="w-3/4">
+        <MapContainer center={ankara} zoom={13} className="h-full w-full z-0">
+          <TileLayer
+            attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
 
-      </MapContainer>
+          {drones.map((drone) => (
+            <Marker
+              key={drone.id}
+              position={drone.position}
+              icon={new MilStdIcon("🟦 ♦️ SUAS ISR").icon}
+            >
+              <Popup>
+                {drone.name}
+                <br />
+                Konum: [{drone.position[0].toFixed(4)}, {drone.position[1].toFixed(4)}]
+                <br />
+                {drone.task && <>Görev: {drone.task}</>}
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
     </div>
   );
 };
