@@ -2,7 +2,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
-//Default ikonları kaldırıyoruz (React-Leaflet için)
+// Varsayılan Leaflet ikonlarını devre dışı bırakıyoruz
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "",
@@ -10,16 +10,12 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "",
 });
 
-// MilStdIcon sınıfı
+// Yeni MilStdIcon sınıfı – metin tabanlı ikon üretir
 class MilStdIcon {
-  color: string;
-  symbol: string;
-  label: string;
+  text: string;
 
-  constructor(color: string, symbol: string, label: string) {
-    this.color = color;
-    this.symbol = symbol;
-    this.label = label;
+  constructor(text: string) {
+    this.text = text;
   }
 
   get icon() {
@@ -27,70 +23,32 @@ class MilStdIcon {
       className: "",
       html: `
         <div style="
-          width: 40px;
-          height: 40px;
-          background-color: ${this.color};
-          border: 2px solid black;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          min-width: 50px;
+          padding: 4px 6px;
+          font-size: 14px;
           font-weight: bold;
-          font-size: 20px;
           color: black;
-          position: relative;
+          text-align: center;
         ">
-          ${this.symbol}
-          <div style="
-            position: absolute;
-            bottom: -20px;
-            width: 100%;
-            text-align: center;
-            font-size: 12px;
-            font-weight: normal;
-          ">
-            ${this.label}
-          </div>
+          ${this.text}
         </div>
       `,
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
+      iconSize: [90, 30],
+      iconAnchor: [45, 15],
     });
   }
 }
 
 const Map = () => {
-  const ankara: [number, number] = [39.92077, 32.85411]; // Ankara koordinatları
+  const ankara: [number, number] = [39.92077, 32.85411]; // Harita merkezi
+  const golbasi: [number, number] = [39.7982, 32.8057];  // Gölbaşı
+  const kizilay: [number, number] = [39.9208, 32.8541];  // Kızılay
+  const etimesgut_havaalani: [number, number] = [39.9514, 32.6874];
 
-  // Sınıfı kullanarak ikon yaratıyoruz
-  const attackIcon = new MilStdIcon("red", "+", "Saldırı").icon;
-
-  // Önceki drone ikonu için direkt DivIcon nesnesi
-  const droneIcon = new L.DivIcon({
-    className: "",
-    html: `
-      <div style="display: flex; flex-direction: column; align-items: center;">
-        <div style="font-size: 20px;">🟢</div>
-        <div style="
-          width: 24px;
-          height: 24px;
-          background: white;
-          border: 2px solid green;
-          clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: bold;
-          font-size: 10px;
-          color: green;
-        ">
-          UAV
-        </div>
-      </div>
-    `,
-    iconSize: [30, 42],
-    iconAnchor: [15, 42],
-    popupAnchor: [0, -40],
-  });
+  // Marker ikonları
+  const droneIconGölbaşı = new MilStdIcon("🟦 ♦️ SUAS ISR").icon;
+  const droneIconKızılay = new MilStdIcon("🟦 ♦️ SUAS ISR").icon;
+  const droneIconEtimesgut = new MilStdIcon("🟦 ♦️ SUAS ISR").icon;
 
   return (
     <div className="h-screen w-full">
@@ -100,15 +58,21 @@ const Map = () => {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {/* MilStdIcon sınıfından oluşturulmuş marker */}
-        <Marker position={ankara} icon={attackIcon}>
-          <Popup>Saldırı Noktası <br /> Konum: Ankara</Popup>
+        {/* Gölbaşı Drone */}
+        <Marker position={golbasi} icon={droneIconGölbaşı}>
+          <Popup>Görevdeki İHA <br /> Konum: Gölbaşı</Popup>
         </Marker>
 
-        {/* Önceki drone ikonu marker */}
-        <Marker position={[39.7764, 32.8326]} icon={droneIcon}>
-          <Popup>Görevdeki İHA <br /> Konum: Gölbaşı</Popup>
-          </Marker>
+        {/* Kızılay Drone */}
+        <Marker position={kizilay} icon={droneIconKızılay}>
+          <Popup>Beklemede duran İHA <br /> Konum: Kızılay</Popup>
+        </Marker>
+
+        {/*Etimesgut Havaalanı Drone*/}
+      <Marker position={etimesgut_havaalani} icon={droneIconEtimesgut}>
+        <Popup>Görevini tamamlamış İHA <br/> Konum: Etimesgut Havaalanı</Popup>
+      </Marker>
+
       </MapContainer>
     </div>
   );
