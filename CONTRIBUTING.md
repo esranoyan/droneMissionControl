@@ -23,7 +23,7 @@ Bu belge, AYRIS projesine katkıda bulunacak geliştiriciler için bir yol harit
 2. Anlamlı commit mesajlarıyla ilerle:
 
    ```bash
-   git commit -m "feat: görev atama formu eklendi"
+   git commit -m "görev atama formu eklendi"
    ```
 
 3. Branch'i GitHub'a gönder:
@@ -38,13 +38,6 @@ Bu belge, AYRIS projesine katkıda bulunacak geliştiriciler için bir yol harit
    - Ne değişti?
    - Neden yapıldı?
    - Ek olarak test ettin mi?
-
-### PR Başlık Önerisi
-
-- feat: görev listesi arayüzü eklendi
-- fix: websocket bağlantı problemi çözüldü
-- chore: gereksiz dosyalar silindi
-- prog: görev listesi tablosu için altyapı hazırlandı
 
 ---
 
