@@ -51,6 +51,9 @@ const Map = () => {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isSelectingTarget, setIsSelectingTarget] = useState(false);
   const [targetSelectCallback, setTargetSelectCallback] = useState<((position: [number, number]) => void) | null>(null);
+  
+  // Görev başlangıç zamanlarını tutmak için state
+  const [taskStartTimes, setTaskStartTimes] = useState<Record<number, number>>({});
 
   const handleSelectDrone = (id: number) => {
     setSelectedDroneId(id);
@@ -69,6 +72,13 @@ const Map = () => {
     const task = tasks.find(t => t.id === taskId);
     if (!task) return;
 
+    // Başlangıç zamanını kaydet
+    const startTime = Date.now();
+    setTaskStartTimes(prev => ({
+      ...prev,
+      [taskId]: startTime
+    }));
+
     // Görevi aktif yap
     setTasks(tasks.map(t => 
       t.id === taskId ? { ...t, status: 'active' as const } : t
@@ -83,13 +93,13 @@ const Map = () => {
     ));
 
     // Lineer hareket animasyonu
-    const startTime = Date.now();
+    const animationStartTime = Date.now();
     const startPos = task.startPosition;
     const targetPos = task.targetPosition;
     const duration = task.duration * 1000; // saniyeyi ms'ye çevir
 
     const animate = () => {
-      const elapsed = Date.now() - startTime;
+      const elapsed = Date.now() - animationStartTime;
       const progress = Math.min(elapsed / duration, 1);
 
       const currentLat = startPos[0] + (targetPos[0] - startPos[0]) * progress;
@@ -107,17 +117,33 @@ const Map = () => {
       if (progress < 1) {
         requestAnimationFrame(animate);
       } else {
-        // Hareket tamamlandı
+        // Hareket tamamlandı - gerçek süreyi hesapla
+        const endTime = Date.now();
+        const taskStartTime = taskStartTimes[taskId];
+        const actualDuration = taskStartTime ? Math.round((endTime - taskStartTime) / 1000) : undefined;
+
+        // Drone'u durdur
         setDrones(prevDrones => 
           prevDrones.map(d => 
             d.id === task.droneId ? { ...d, isMoving: false } : d
           )
         );
+
+        // Görevi tamamla ve gerçek süreyi kaydet
         setTasks(prevTasks => 
           prevTasks.map(t => 
-            t.id === taskId ? { ...t, status: 'completed' as const } : t
+            t.id === taskId 
+              ? { ...t, status: 'completed' as const, actualDuration } 
+              : t
           )
         );
+
+        // Başlangıç zamanını temizle
+        setTaskStartTimes(prev => {
+          const newTimes = { ...prev };
+          delete newTimes[taskId];
+          return newTimes;
+        });
       }
     };
 

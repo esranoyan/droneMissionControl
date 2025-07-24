@@ -15,6 +15,7 @@ export interface Task {
   duration: number; // saniye
   description: string;
   status: 'pending' | 'active' | 'completed';
+  actualDuration?: number; //Gerçekte ne kadar sürüyor
 }
 
 export interface DroneListProps {
