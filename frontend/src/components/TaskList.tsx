@@ -44,6 +44,9 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onStartTask }) => {
                 {activeTasks.map((task) => (
                   <li key={task.id} className="bg-blue-50 p-3 rounded shadow-sm border-l-4 border-blue-400">
                     <div className="font-medium text-sm">{task.droneName}</div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {task.description}
+                    </div>
                     <div className="text-xs text-blue-600 mt-1 font-semibold">
                       🔄 Görev devam ediyor...
                     </div>
@@ -61,6 +64,9 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onStartTask }) => {
                 {completedTasks.map((task) => (
                   <li key={task.id} className="bg-green-50 p-3 rounded shadow-sm border-l-4 border-green-400">
                     <div className="font-medium text-sm">{task.droneName}</div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {task.description}
+                    </div>
                     <div className="text-xs text-green-600 mt-1 font-semibold">
                       ✅ Görev tamamlandı
                     </div>

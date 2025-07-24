@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import ControlPanel from "./components/ControlPanel";
 import DroneMarker from "./components/DroneMarker";
-import TaskDialog from "./components/TaskDialog";
+import TaskDialog from "./components/TaskDialog";  
 import { type Drone, type Task } from "./types/drone";
 
 // Varsayılan Leaflet ikonlarını devre dışı bırakıyoruz

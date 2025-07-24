@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type TaskDialogProps, type Task } from "../types/drone";
 
 const TaskDialog: React.FC<TaskDialogProps & { 
@@ -13,6 +13,28 @@ const TaskDialog: React.FC<TaskDialogProps & {
   const [targetPosition, setTargetPosition] = useState<[number, number, number] | null>(null);
   const [duration, setDuration] = useState<string>("");
   const [description, setDescription] = useState<string>("");
+  const [descriptionError, setDescriptionError] = useState<boolean>(false);
+
+  // Varsayılan açıklama oluşturma fonksiyonu
+  const generateDefaultDescription = () => {
+    const now = new Date();
+    const day = now.getDate().toString().padStart(2, '0');
+    const month = (now.getMonth() + 1).toString().padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = now.getHours().toString().padStart(2, '0');
+    const minutes = now.getMinutes().toString().padStart(2, '0');
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds} zamanlı oluşturulan görev`;
+  };
+
+  // Dialog açıldığında varsayılan açıklamayı ayarla
+  useEffect(() => {
+    if (isOpen && drone) {
+      setDescription(generateDefaultDescription());
+      setDescriptionError(false);
+    }
+  }, [isOpen, drone]);
 
   const handleSelectTarget = () => {
     onSelectTarget((position: [number, number]) => {
@@ -21,7 +43,13 @@ const TaskDialog: React.FC<TaskDialogProps & {
   };
 
   const handleAddTask = () => {
-    if (!drone || !targetPosition || !duration || !description) {
+    // Açıklama validasyonu
+    if (!description.trim()) {
+      setDescriptionError(true);
+      return;
+    }
+
+    if (!drone || !targetPosition || !duration) {
       alert("Lütfen tüm alanları doldurun");
       return;
     }
@@ -32,7 +60,7 @@ const TaskDialog: React.FC<TaskDialogProps & {
       startPosition: [...drone.position],
       targetPosition: targetPosition,
       duration: parseInt(duration),
-      description,
+      description: description.trim(),
       status: 'pending'
     };
 
@@ -42,11 +70,20 @@ const TaskDialog: React.FC<TaskDialogProps & {
     setTargetPosition(null);
     setDuration("");
     setDescription("");
+    setDescriptionError(false);
   };
 
   const handleAltitudeChange = (altitude: string) => {
     if (targetPosition) {
       setTargetPosition([targetPosition[0], targetPosition[1], parseFloat(altitude) || 0]);
+    }
+  };
+
+  const handleDescriptionChange = (value: string) => {
+    setDescription(value);
+    // Kullanıcı yazmaya başladığında hatayı temizle
+    if (descriptionError && value.trim()) {
+      setDescriptionError(false);
     }
   };
 
@@ -116,11 +153,20 @@ const TaskDialog: React.FC<TaskDialogProps & {
             </label>
             <textarea
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => handleDescriptionChange(e.target.value)}
+              className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 ${
+                descriptionError 
+                  ? 'border-red-500 focus:ring-red-500' 
+                  : 'border-gray-300 focus:ring-blue-500'
+              }`}
               rows={3}
               placeholder="Görev açıklaması"
             />
+            {descriptionError && (
+              <p className="text-red-500 text-xs mt-1">
+                Görev detayı boş olamaz
+              </p>
+            )}
           </div>
         </div>
 
@@ -135,7 +181,7 @@ const TaskDialog: React.FC<TaskDialogProps & {
           <button
             onClick={handleAddTask}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={!targetPosition || !duration || !description}
+            disabled={!targetPosition || !duration}
           >
             Görev Ekle
           </button>
