@@ -15,7 +15,7 @@ export interface Task {
   duration: number; // saniye
   description: string;
   status: 'pending' | 'active' | 'completed';
-  actualDuration?: number; //Gerçekte ne kadar sürüyor
+  actualDuration?: number;
 }
 
 export interface DroneListProps {
@@ -41,6 +41,7 @@ export interface ControlPanelProps {
   selectedDroneId: number | null;
   onSelectDrone: (id: number) => void;
   onAddTask: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onAddDrone: () => void;
   onStartTask: (taskId: number) => void;
   // onRemoveDrone: (id: number) => void;
 }
@@ -52,7 +53,6 @@ export interface TaskDialogProps {
   onAddTask: (task: Omit<Task, 'id'>) => void;
 }
 
-// Görev ilerleme verisi için interface
 export interface TaskProgress {
   taskId: number;
   startTime: number;

@@ -1,5 +1,13 @@
-import { useState } from "react";
-import { MapContainer, TileLayer, useMapEvents, Polyline, CircleMarker, Tooltip } from "react-leaflet";
+import { useState, useRef } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  useMapEvents,
+  Polyline,
+  CircleMarker,
+  Tooltip,
+  useMap,
+} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import ControlPanel from "./components/ControlPanel";
@@ -31,18 +39,19 @@ const MapClickHandler = ({
   return null;
 };
 
+const MapInitializer = ({ onInit }: { onInit: (map: L.Map) => void }) => {
+  const map = useMap();
+  onInit(map);
+  return null;
+};
+
+
 const Map = () => {
   const ankara: [number, number, number] = [39.92077, 32.85411, 850];
 
-  const [drones, setDrones] = useState<Drone[]>([
-    {
-      id: 1,
-      name: "İHA-001",
-      position: [39.92077, 32.85411, 850],
-      isMoving: false,
-    },
-  ]);
+  const mapRef = useRef<L.Map | null>(null);
 
+  const [drones, setDrones] = useState<Drone[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedDroneId, setSelectedDroneId] = useState<number | null>(null);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -55,6 +64,20 @@ const Map = () => {
 
   const handleSelectDrone = (id: number) => {
     setSelectedDroneId(id);
+  };
+
+  const handleAddDrone = () => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const center = map.getCenter();
+    const newDrone: Drone = {
+      id: Date.now(),
+      name: `İHA-${String(drones.length + 1).padStart(3, "0")}`,
+      position: [center.lat, center.lng, ankara[2]],
+      isMoving: false,
+    };
+    setDrones((prev) => [...prev, newDrone]);
   };
 
   const handleAddTask = (taskData: Omit<Task, "id">) => {
@@ -95,18 +118,19 @@ const Map = () => {
       startTime: startTime,
       path: [[startPos[0], startPos[1]]],
       currentPosition: [startPos[0], startPos[1]],
-      elapsedMs: 0
+      elapsedMs: 0,
     };
 
-    setTaskProgresses(prev => [...prev, taskProgress]);
+    setTaskProgresses((prev) => [...prev, taskProgress]);
 
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
-      // 🔵 Elapsed log her saniye başında
       if (elapsed % 1000 < 16) {
-        console.log(`Görev #${taskId} - Elapsed: ${elapsed}ms (${(elapsed / 1000).toFixed(2)}s)`);
+        console.log(
+          `Görev #${taskId} - Elapsed: ${elapsed}ms (${(elapsed / 1000).toFixed(2)}s)`
+        );
       }
 
       const currentLat =
@@ -124,14 +148,17 @@ const Map = () => {
         )
       );
 
-      setTaskProgresses(prev =>
-        prev.map(tp =>
+      setTaskProgresses((prev) =>
+        prev.map((tp) =>
           tp.taskId === taskId
             ? {
                 ...tp,
                 currentPosition: [currentLat, currentLng],
                 elapsedMs: elapsed,
-                path: elapsed % 1000 < 16 ? [...tp.path, [currentLat, currentLng]] : tp.path
+                path:
+                  elapsed % 1000 < 16
+                    ? [...tp.path, [currentLat, currentLng]]
+                    : tp.path,
               }
             : tp
         )
@@ -147,25 +174,32 @@ const Map = () => {
         );
         setTasks((prev) =>
           prev.map((t) =>
-            t.id === taskId ? { ...t, status: "completed" as const, actualDuration: Math.round(elapsed / 1000) } : t
+            t.id === taskId
+              ? {
+                  ...t,
+                  status: "completed" as const,
+                  actualDuration: Math.round(elapsed / 1000),
+                }
+              : t
           )
         );
 
-        setTaskProgresses(prev =>
-          prev.map(tp =>
+        setTaskProgresses((prev) =>
+          prev.map((tp) =>
             tp.taskId === taskId
               ? {
                   ...tp,
                   currentPosition: [targetPos[0], targetPos[1]],
                   elapsedMs: elapsed,
-                  path: [...tp.path, [targetPos[0], targetPos[1]]]
+                  path: [...tp.path, [targetPos[0], targetPos[1]]],
                 }
               : tp
           )
         );
 
-        // 🔵 Tamamlandığında logla
-        console.log(`Görev #${taskId} tamamlandı. Toplam süre: ${elapsed}ms (${(elapsed / 1000).toFixed(2)}s)`);
+        console.log(
+          `Görev #${taskId} tamamlandı. Toplam süre: ${elapsed}ms (${(elapsed / 1000).toFixed(2)}s)`
+        );
       }
     };
 
@@ -186,9 +220,9 @@ const Map = () => {
 
   const getTaskRoutes = () => {
     return tasks
-      .filter(task => task.status === 'active' || task.status === 'completed')
-      .map(task => {
-        const progress = taskProgresses.find(tp => tp.taskId === task.id);
+      .filter((task) => task.status === "active" || task.status === "completed")
+      .map((task) => {
+        const progress = taskProgresses.find((tp) => tp.taskId === task.id);
         return { task, progress };
       })
       .filter(({ progress }) => progress !== undefined);
@@ -201,6 +235,7 @@ const Map = () => {
         tasks={tasks}
         selectedDroneId={selectedDroneId}
         onSelectDrone={handleSelectDrone}
+        onAddDrone={handleAddDrone}
         onAddTask={() => setIsTaskDialogOpen(true)}
         onStartTask={handleStartTask}
       />
@@ -217,6 +252,8 @@ const Map = () => {
           zoom={13}
           className="h-full w-full z-0"
         >
+          <MapInitializer onInit={(map) => { mapRef.current = map; }} />
+      
           <TileLayer
             attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -240,30 +277,30 @@ const Map = () => {
               <Polyline
                 positions={[
                   [task.startPosition[0], task.startPosition[1]],
-                  [task.targetPosition[0], task.targetPosition[1]]
+                  [task.targetPosition[0], task.targetPosition[1]],
                 ]}
-                color={task.status === 'completed' ? 'green' : 'blue'}
+                color={task.status === "completed" ? "green" : "blue"}
                 weight={3}
-                opacity={task.status === 'completed' ? 0.6 : 0.7}
-                dashArray={task.status === 'completed' ? "5, 5" : "10, 5"}
+                opacity={task.status === "completed" ? 0.6 : 0.7}
+                dashArray={task.status === "completed" ? "5, 5" : "10, 5"}
               />
 
               {progress && (
                 <CircleMarker
                   center={progress.currentPosition}
-                  radius={task.status === 'completed' ? 6 : 8}
-                  color={task.status === 'completed' ? 'green' : 'red'}
-                  fillColor={task.status === 'completed' ? 'green' : 'red'}
-                  fillOpacity={task.status === 'completed' ? 0.6 : 0.8}
-                  weight={task.status === 'completed' ? 2 : 3}
+                  radius={task.status === "completed" ? 6 : 8}
+                  color={task.status === "completed" ? "green" : "red"}
+                  fillColor={task.status === "completed" ? "green" : "red"}
+                  fillOpacity={task.status === "completed" ? 0.6 : 0.8}
+                  weight={task.status === "completed" ? 2 : 3}
                 >
                   <Tooltip permanent direction="top" offset={[0, -10]}>
                     <div className="text-xs font-semibold">
                       <div>{Math.round(progress.elapsedMs)}ms</div>
-                      {task.status === 'completed' && (
+                      {task.status === "completed" && (
                         <div className="text-green-600">✅ Tamamlandı</div>
                       )}
-                      {task.status === 'active' && (
+                      {task.status === "active" && (
                         <div className="text-blue-600">🔄 Devam ediyor</div>
                       )}
                     </div>
@@ -271,23 +308,27 @@ const Map = () => {
                 </CircleMarker>
               )}
 
-              {progress && progress.path.length > 1 && progress.path.slice(1).map((point, index) => (
-                <CircleMarker
-                  key={`path-${task.id}-${index}`}
-                  center={point}
-                  radius={task.status === 'completed' ? 2 : 3}
-                  color={task.status === 'completed' ? 'darkgreen' : 'orange'}
-                  fillColor={task.status === 'completed' ? 'darkgreen' : 'orange'}
-                  fillOpacity={task.status === 'completed' ? 0.4 : 0.6}
-                  weight={1}
-                >
-                  <Tooltip direction="top" offset={[0, -5]}>
-                    <div className="text-xs">
-                      Saniye: {index + 1}
-                    </div>
-                  </Tooltip>
-                </CircleMarker>
-              ))}
+              {progress &&
+                progress.path.length > 1 &&
+                progress.path.slice(1).map((point, index) => (
+                  <CircleMarker
+                    key={`path-${task.id}-${index}`}
+                    center={point}
+                    radius={task.status === "completed" ? 2 : 3}
+                    color={
+                      task.status === "completed" ? "darkgreen" : "orange"
+                    }
+                    fillColor={
+                      task.status === "completed" ? "darkgreen" : "orange"
+                    }
+                    fillOpacity={task.status === "completed" ? 0.4 : 0.6}
+                    weight={1}
+                  >
+                    <Tooltip direction="top" offset={[0, -5]}>
+                      <div className="text-xs">Saniye: {index + 1}</div>
+                    </Tooltip>
+                  </CircleMarker>
+                ))}
             </div>
           ))}
         </MapContainer>

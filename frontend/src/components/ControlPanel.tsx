@@ -7,6 +7,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   tasks,
   selectedDroneId,
   onSelectDrone,
+  onAddDrone,
   onAddTask,
   onStartTask,
   // onRemoveDrone,
@@ -15,12 +16,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     <div className="w-1/4 bg-gray-100 p-4 overflow-y-auto">
       <h2 className="text-xl font-bold mb-4">Kontrol Paneli</h2>
       
-      {/* Unsur Ekle düğmesi - pasif */}
+      {/* Unsur Ekle düğmesi*/}
       <button
-        className="bg-gray-400 text-white px-4 py-2 rounded mb-4 w-full cursor-not-allowed"
-        disabled
+        className="bg-blue-500 text-white px-4 py-2 rounded mb-4 w-full"
+        onClick={onAddDrone}
       >
-        Unsur Ekle (Pasif)
+        Unsur Ekle
       </button>
 
       {/* Görev Ata düğmesi */}
