@@ -51,3 +51,12 @@ export interface TaskDialogProps {
   onClose: () => void;
   onAddTask: (task: Omit<Task, 'id'>) => void;
 }
+
+// Görev ilerleme verisi için interface
+export interface TaskProgress {
+  taskId: number;
+  startTime: number;
+  path: [number, number][];
+  currentPosition: [number, number];
+  elapsedMs: number;
+}
