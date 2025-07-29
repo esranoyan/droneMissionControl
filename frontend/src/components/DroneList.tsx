@@ -35,7 +35,9 @@ const DroneList: React.FC<DroneListProps> = ({
                   Sil
                 </button>
               </div> */}
-              <div className="font-medium text-sm">{drone.name}</div>
+              <div className="font-medium text-sm">
+                {drone.name}
+                </div>
               <div className="text-xs text-gray-500 mt-1">
                 Konum: [{drone.position[0].toFixed(6)}, {drone.position[1].toFixed(6)}]
               </div>

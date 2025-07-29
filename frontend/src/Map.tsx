@@ -1,13 +1,5 @@
 import { useState, useRef } from "react";
-import {
-  MapContainer,
-  TileLayer,
-  useMapEvents,
-  Polyline,
-  CircleMarker,
-  Tooltip,
-  useMap,
-} from "react-leaflet";
+import {MapContainer, TileLayer, useMapEvents, Polyline, CircleMarker, Tooltip, useMap,} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import ControlPanel from "./components/ControlPanel";
@@ -93,14 +85,18 @@ const Map = () => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId ? { ...t, status: "active" as const } : t
-      )
-    );
-
     const drone = drones.find((d) => d.id === task.droneId);
     if (!drone) return;
+
+    const duration = task.duration * 1000;
+    const interval = 1000 / 30;
+
+    // Görevi aktif yap
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId ? { ...t, status: "active" } : t
+      )
+    );
 
     setDrones((prev) =>
       prev.map((d) =>
@@ -109,41 +105,33 @@ const Map = () => {
     );
 
     const startTime = Date.now();
-    const startPos = task.startPosition;
-    const targetPos = task.targetPosition;
-    const duration = task.duration * 1000;
-
-    const taskProgress: TaskProgress = {
-      taskId: taskId,
-      startTime: startTime,
-      path: [[startPos[0], startPos[1]]],
-      currentPosition: [startPos[0], startPos[1]],
+    const initialProgress: TaskProgress = {
+      taskId,
+      startTime,
+      path: [[task.startPosition[0], task.startPosition[1]]],
+      currentPosition: [task.startPosition[0], task.startPosition[1]],
       elapsedMs: 0,
     };
+    setTaskProgresses((prev) => [...prev, initialProgress]);
 
-    setTaskProgresses((prev) => [...prev, taskProgress]);
+    const worker = new Worker(new URL('./workers/taskWorker.js', import.meta.url), { type: 'module' });
 
-    const animate = () => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(elapsed / duration, 1);
+    worker.postMessage({
+      task: {
+        start: task.startPosition,
+        end: task.targetPosition,
+      },
+      duration,
+      interval,
+    });
 
-      if (elapsed % 1000 < 16) {
-        console.log(
-          `Görev #${taskId} - Elapsed: ${elapsed}ms (${(elapsed / 1000).toFixed(2)}s)`
-        );
-      }
-
-      const currentLat =
-        startPos[0] + (targetPos[0] - startPos[0]) * progress;
-      const currentLng =
-        startPos[1] + (targetPos[1] - startPos[1]) * progress;
-      const currentAlt =
-        startPos[2] + (targetPos[2] - startPos[2]) * progress;
+    worker.onmessage = (e) => {
+      const { currentPosition, elapsed, isDone } = e.data;
 
       setDrones((prev) =>
         prev.map((d) =>
           d.id === task.droneId
-            ? { ...d, position: [currentLat, currentLng, currentAlt] }
+            ? { ...d, position: [currentPosition[0], currentPosition[1], task.startPosition[2]] }
             : d
         )
       );
@@ -153,20 +141,15 @@ const Map = () => {
           tp.taskId === taskId
             ? {
                 ...tp,
-                currentPosition: [currentLat, currentLng],
+                currentPosition,
                 elapsedMs: elapsed,
-                path:
-                  elapsed % 1000 < 16
-                    ? [...tp.path, [currentLat, currentLng]]
-                    : tp.path,
+                path: elapsed % 1000 < 16 ? [...tp.path, currentPosition] : tp.path,
               }
             : tp
         )
       );
 
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      } else {
+      if (isDone) {
         setDrones((prev) =>
           prev.map((d) =>
             d.id === task.droneId ? { ...d, isMoving: false } : d
@@ -177,33 +160,15 @@ const Map = () => {
             t.id === taskId
               ? {
                   ...t,
-                  status: "completed" as const,
+                  status: "completed",
                   actualDuration: Math.round(elapsed / 1000),
                 }
               : t
           )
         );
-
-        setTaskProgresses((prev) =>
-          prev.map((tp) =>
-            tp.taskId === taskId
-              ? {
-                  ...tp,
-                  currentPosition: [targetPos[0], targetPos[1]],
-                  elapsedMs: elapsed,
-                  path: [...tp.path, [targetPos[0], targetPos[1]]],
-                }
-              : tp
-          )
-        );
-
-        console.log(
-          `Görev #${taskId} tamamlandı. Toplam süre: ${elapsed}ms (${(elapsed / 1000).toFixed(2)}s)`
-        );
+        worker.terminate();
       }
     };
-
-    animate();
   };
 
   const handleTargetSelect = (position: [number, number]) => {
