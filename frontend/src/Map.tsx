@@ -183,15 +183,22 @@ const Map = () => {
     ? drones.find((d) => d.id === selectedDroneId) || null
     : null;
 
+  // const getTaskRoutes = () => {
+  //   return tasks
+  //     .filter((task) => task.status === "active" || task.status === "completed")
+  //     .map((task) => {
+  //       const progress = taskProgresses.find((tp) => tp.taskId === task.id);
+  //       return { task, progress };
+  //     })
+  //     .filter(({ progress }) => progress !== undefined);
+  // };
+
   const getTaskRoutes = () => {
-    return tasks
-      .filter((task) => task.status === "active" || task.status === "completed")
-      .map((task) => {
-        const progress = taskProgresses.find((tp) => tp.taskId === task.id);
-        return { task, progress };
-      })
-      .filter(({ progress }) => progress !== undefined);
-  };
+  return tasks.map((task) => {
+    const progress = taskProgresses.find((tp) => tp.taskId === task.id);
+    return { task, progress };
+  });
+};
 
   return (
     <div className="flex h-screen w-full">
@@ -244,10 +251,13 @@ const Map = () => {
                   [task.startPosition[0], task.startPosition[1]],
                   [task.targetPosition[0], task.targetPosition[1]],
                 ]}
-                color={task.status === "completed" ? "green" : "blue"}
+                color={task.color}
                 weight={3}
-                opacity={task.status === "completed" ? 0.6 : 0.7}
-                dashArray={task.status === "completed" ? "5, 5" : "10, 5"}
+                opacity={task.status === "completed" ? 0.6 :
+                  task.status === "active" ? 0.8 : 0.5
+                }
+                dashArray={task.status === "completed" ? "5, 5" : 
+                  task.status === "pending" ? "1,5" : "10, 5"}
               />
 
               {progress && (

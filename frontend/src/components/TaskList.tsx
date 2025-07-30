@@ -143,22 +143,6 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onStartTask }) => {
                             Planlanan: {formatTime(task.duration)}
                           </span>
                         </div>
-                        {task.actualDuration !== task.duration && (
-                          <div className={`mt-1 text-xs font-semibold ${
-                            task.actualDuration < task.duration 
-                              ? 'text-green-600' 
-                              : task.actualDuration > task.duration 
-                                ? 'text-red-600' 
-                                : 'text-gray-600'
-                          }`}>
-                            {task.actualDuration < task.duration 
-                              ? `🚀 ${formatTime(task.duration - task.actualDuration)} erken tamamlandı` 
-                              : task.actualDuration > task.duration
-                                ? `⚠️ ${formatTime(task.actualDuration - task.duration)} geç tamamlandı`
-                                : '🎯 Tam zamanında tamamlandı'
-                            }
-                          </div>
-                        )}
                       </div>
                     )}
                   </li>

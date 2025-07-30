@@ -14,6 +14,7 @@ const TaskDialog: React.FC<TaskDialogProps & {
   const [duration, setDuration] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [descriptionError, setDescriptionError] = useState<boolean>(false);
+  const [color, setColor] = useState<string>("#0088ff");
 
   // Varsayılan açıklama oluşturma fonksiyonu
   const generateDefaultDescription = () => {
@@ -61,7 +62,8 @@ const TaskDialog: React.FC<TaskDialogProps & {
       targetPosition: targetPosition,
       duration: parseInt(duration),
       description: description.trim(),
-      status: 'pending'
+      status: 'pending',
+      color: color
     };
 
     onAddTask(taskData);
@@ -169,6 +171,16 @@ const TaskDialog: React.FC<TaskDialogProps & {
             )}
           </div>
         </div>
+
+        {/*Renk Seçimi*/}
+       <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Rota Rengi
+        </label>
+       <input type="color" value={color} onChange={(e) => setColor(e.target.value)}
+       className="w-full h-10 p-1 border border-gray-300 rounded-md cursor-pointer"
+       /> 
+        </div> 
 
         {/* Butonlar */}
         <div className="flex justify-end space-x-2 mt-6">

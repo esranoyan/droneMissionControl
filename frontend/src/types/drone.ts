@@ -16,6 +16,7 @@ export interface Task {
   description: string;
   status: 'pending' | 'active' | 'completed';
   actualDuration?: number;
+  color: string;
 }
 
 export interface DroneListProps {
