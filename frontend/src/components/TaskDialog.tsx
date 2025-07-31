@@ -2,19 +2,39 @@ import { useState, useEffect } from "react";
 import { type TaskDialogProps, type Task } from "../types/drone";
 
 const TaskDialog: React.FC<TaskDialogProps & { 
-  onSelectTarget: (callback: (position: [number, number]) => void) => void 
+  onSelectTarget: (callback: (position: [number, number]) => void) => void;
+  tasks?: Task[]; // Mevcut görevleri almak için
 }> = ({
   isOpen,
   drone,
   onClose,
   onAddTask,
   onSelectTarget,
+  tasks = [], // Varsayılan değer
 }) => {
   const [targetPosition, setTargetPosition] = useState<[number, number, number] | null>(null);
   const [duration, setDuration] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [descriptionError, setDescriptionError] = useState<boolean>(false);
   const [color, setColor] = useState<string>("#0088ff");
+
+  // Drone'un bir sonraki görevinin başlangıç pozisyonunu hesapla
+  const getNextTaskStartPosition = (): [number, number, number] => {
+    if (!drone) return [0, 0, 0];
+
+    // Bu drone'un beklemedeki veya aktif görevlerini bul
+    const droneExistingTasks = tasks
+      .filter(t => t.droneId === drone.id && t.status !== 'completed')
+      .sort((a, b) => b.id - a.id); // En son eklenen görev ilk sırada
+
+    if (droneExistingTasks.length > 0) {
+      // Son görevin hedef pozisyonunu döndür
+      return droneExistingTasks[0].targetPosition;
+    } else {
+      // Hiç görev yoksa drone'un mevcut pozisyonunu döndür
+      return drone.position;
+    }
+  };
 
   // Varsayılan açıklama oluşturma fonksiyonu
   const generateDefaultDescription = () => {
@@ -26,7 +46,9 @@ const TaskDialog: React.FC<TaskDialogProps & {
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
     
-    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds} zamanlı oluşturulan görev`;
+    const droneTaskCount = tasks.filter(t => t.droneId === drone?.id).length + 1;
+    
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds} - Görev #${droneTaskCount}`;
   };
 
   // Dialog açıldığında varsayılan açıklamayı ayarla
@@ -35,7 +57,7 @@ const TaskDialog: React.FC<TaskDialogProps & {
       setDescription(generateDefaultDescription());
       setDescriptionError(false);
     }
-  }, [isOpen, drone]);
+  }, [isOpen, drone, tasks]);
 
   const handleSelectTarget = () => {
     onSelectTarget((position: [number, number]) => {
@@ -55,10 +77,13 @@ const TaskDialog: React.FC<TaskDialogProps & {
       return;
     }
 
+    // Başlangıç pozisyonunu hesapla (Map.tsx'te de yapılıyor ama burada gösterim için)
+    const startPosition = getNextTaskStartPosition();
+
     const taskData: Omit<Task, 'id'> = {
       droneId: drone.id,
       droneName: drone.name,
-      startPosition: [...drone.position],
+      startPosition: startPosition, // Hesaplanan başlangıç pozisyonu
       targetPosition: targetPosition,
       duration: parseInt(duration),
       description: description.trim(),
@@ -91,12 +116,31 @@ const TaskDialog: React.FC<TaskDialogProps & {
 
   if (!isOpen || !drone) return null;
 
+  const nextStartPosition = getNextTaskStartPosition();
+  const droneTaskCount = tasks.filter(t => t.droneId === drone.id).length;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
         <h2 className="text-xl font-bold mb-4">
           Görev Ekle - {drone.name}
         </h2>
+        
+        {/* Görev Bilgisi */}
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <h3 className="text-sm font-semibold text-blue-800 mb-2">
+            Görev Bilgisi
+          </h3>
+          <p className="text-xs text-blue-700">
+            {droneTaskCount === 0 
+              ? "Bu drone için ilk görev" 
+              : `Bu görev ${droneTaskCount + 1}. sırada çalışacak`
+            }
+          </p>
+          <p className="text-xs text-blue-600 mt-1">
+            <strong>Başlangıç:</strong> {nextStartPosition[0].toFixed(1)}, {nextStartPosition[1].toFixed(1)}, {nextStartPosition[2].toFixed(1)}m
+          </p>
+        </div>
         
         <div className="space-y-4">
           {/* Hedef Pozisyon Seçimi */}
@@ -170,17 +214,20 @@ const TaskDialog: React.FC<TaskDialogProps & {
               </p>
             )}
           </div>
-        </div>
 
-        {/*Renk Seçimi*/}
-       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Rota Rengi
-        </label>
-       <input type="color" value={color} onChange={(e) => setColor(e.target.value)}
-       className="w-full h-10 p-1 border border-gray-300 rounded-md cursor-pointer"
-       /> 
-        </div> 
+          {/* Renk Seçimi */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Rota Rengi
+            </label>
+            <input 
+              type="color" 
+              value={color} 
+              onChange={(e) => setColor(e.target.value)}
+              className="w-full h-10 p-1 border border-gray-300 rounded-md cursor-pointer"
+            /> 
+          </div>
+        </div>
 
         {/* Butonlar */}
         <div className="flex justify-end space-x-2 mt-6">

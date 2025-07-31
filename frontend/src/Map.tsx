@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {MapContainer, TileLayer, useMapEvents, Polyline, CircleMarker, Tooltip, useMap,} from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -37,6 +37,12 @@ const MapInitializer = ({ onInit }: { onInit: (map: L.Map) => void }) => {
   return null;
 };
 
+// Drone'ların görev kuyruklarını takip etmek için
+interface DroneTaskQueue {
+  droneId: number;
+  taskIds: number[];
+  isProcessing: boolean;
+}
 
 const Map = () => {
   const ankara: [number, number, number] = [39.92077, 32.85411, 850];
@@ -53,6 +59,7 @@ const Map = () => {
     useState<((position: [number, number]) => void) | null>(null);
 
   const [taskProgresses, setTaskProgresses] = useState<TaskProgress[]>([]);
+  const [droneTaskQueues, setDroneTaskQueues] = useState<DroneTaskQueue[]>([]);
 
   const handleSelectDrone = (id: number) => {
     setSelectedDroneId(id);
@@ -73,46 +80,188 @@ const Map = () => {
   };
 
   const handleAddTask = (taskData: Omit<Task, "id">) => {
+    // Bu drone için var olan görevleri kontrol et
+    const droneExistingTasks = tasks.filter(t => t.droneId === taskData.droneId);
+    const drone = drones.find(d => d.id === taskData.droneId);
+    
+    let startPosition = taskData.startPosition;
+    
+    if (droneExistingTasks.length > 0) {
+      // Bu drone'un son görevinin hedef pozisyonunu bul
+      const lastTask = droneExistingTasks
+        .filter(t => t.status !== 'completed') // Tamamlanmamış görevler arasından
+        .sort((a, b) => b.id - a.id)[0]; // En son eklenen görev
+      
+      if (lastTask) {
+        // Son görevin hedef pozisyonunu bu görevin başlangıç pozisyonu yap
+        startPosition = lastTask.targetPosition;
+      } else {
+        // Tüm görevler tamamlanmışsa drone'un mevcut pozisyonunu kullan
+        startPosition = drone ? drone.position : taskData.startPosition;
+      }
+    } else {
+      // İlk görevse drone'un mevcut pozisyonunu kullan
+      startPosition = drone ? drone.position : taskData.startPosition;
+    }
+
     const newTask: Task = {
       ...taskData,
+      startPosition,
       id: Date.now(),
     };
     setTasks([...tasks, newTask]);
     setIsTaskDialogOpen(false);
   };
 
-  const handleStartTask = (taskId: number) => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
+  // Bir drone'un bir sonraki görevini başlatan fonksiyon
+  const startNextTaskForDrone = (droneId: number) => {
+    // Mevcut state'leri al
+    setDroneTaskQueues(currentQueues => {
+      const queue = currentQueues.find(q => q.droneId === droneId);
+      if (!queue || queue.taskIds.length === 0) {
+        // Kuyruk boş, drone işlemini bitir
+        return currentQueues.map(q => 
+          q.droneId === droneId 
+            ? { ...q, isProcessing: false }
+            : q
+        );
+      }
 
-    const drone = drones.find((d) => d.id === task.droneId);
-    if (!drone) return;
+      const nextTaskId = queue.taskIds[0];
+      
+      // Task'ı ve Drone'u güncelle
+      setTasks(currentTasks => {
+        const task = currentTasks.find(t => t.id === nextTaskId);
+        if (!task) return currentTasks;
 
+        setDrones(currentDrones => {
+          const drone = currentDrones.find(d => d.id === droneId);
+          if (!drone) return currentDrones;
+
+          // Task'ın startPosition'ını drone'un mevcut pozisyonu ile güncelle
+          const updatedTask = {
+            ...task,
+            startPosition: [...drone.position] as [number, number, number]
+          };
+
+          // Task'ı active yap
+          setTimeout(() => {
+            setTasks(prev => prev.map(t => 
+              t.id === nextTaskId 
+                ? { ...t, status: "active" as const, startPosition: updatedTask.startPosition }
+                : t
+            ));
+            
+            // Görevi başlat
+            executeTask(updatedTask, droneId);
+          }, 10);
+
+          // Drone'u hareket halinde işaretle
+          return currentDrones.map(d =>
+            d.id === droneId ? { ...d, isMoving: true } : d
+          );
+        });
+
+        return currentTasks;
+      });
+
+      // Kuyrudan görevi çıkar
+      return currentQueues.map(q =>
+        q.droneId === droneId
+          ? { ...q, taskIds: q.taskIds.slice(1) }
+          : q
+      );
+    });
+  };
+
+  // Daha basit bir alternatif yaklaşım - useEffect ile
+  const [pendingTaskStart, setPendingTaskStart] = useState<{droneId: number, taskId: number} | null>(null);
+
+  // Görev başlatma için useEffect kullan
+  useEffect(() => {
+    if (pendingTaskStart) {
+      const { droneId, taskId } = pendingTaskStart;
+      
+      const drone = drones.find(d => d.id === droneId);
+      const task = tasks.find(t => t.id === taskId);
+      
+      if (drone && task) {
+        const updatedTask = {
+          ...task,
+          startPosition: [...drone.position] as [number, number, number]
+        };
+        
+        // Task'ı active yap
+        setTasks(prev => prev.map(t => 
+          t.id === taskId 
+            ? { ...t, status: "active" as const, startPosition: updatedTask.startPosition }
+            : t
+        ));
+        
+        // Drone'u hareket halinde işaretle
+        setDrones(prev => prev.map(d =>
+          d.id === droneId ? { ...d, isMoving: true } : d
+        ));
+        
+        // Görevi başlat
+        executeTask(updatedTask, droneId);
+      }
+      
+      setPendingTaskStart(null);
+    }
+  }, [pendingTaskStart, drones, tasks]);
+
+  // Yeniden yazılmış startNextTaskForDrone fonksiyonu
+  const startNextTaskForDroneSimple = (droneId: number) => {
+    const queue = droneTaskQueues.find(q => q.droneId === droneId);
+    if (!queue || queue.taskIds.length === 0) {
+      // Kuyruk boş, drone işlemini bitir
+      setDroneTaskQueues(prev => 
+        prev.map(q => 
+          q.droneId === droneId 
+            ? { ...q, isProcessing: false }
+            : q
+        )
+      );
+      return;
+    }
+
+    const nextTaskId = queue.taskIds[0];
+    
+    // Kuyrudan görevi çıkar
+    setDroneTaskQueues(prev =>
+      prev.map(q =>
+        q.droneId === droneId
+          ? { ...q, taskIds: q.taskIds.slice(1) }
+          : q
+      )
+    );
+    
+    // Görev başlatmayı tetikle
+    setPendingTaskStart({ droneId, taskId: nextTaskId });
+  };
+
+  // executeTask fonksiyonunda da değişiklik
+  const executeTask = (task: Task, droneId: number) => {
+    console.log('executeTask başladı:', { taskId: task.id, droneId, startPos: task.startPosition, targetPos: task.targetPosition });
+    
     const duration = task.duration * 1000;
     const interval = 1000 / 30;
 
-    // Görevi aktif yap
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId ? { ...t, status: "active" } : t
-      )
-    );
-
-    setDrones((prev) =>
-      prev.map((d) =>
-        d.id === task.droneId ? { ...d, isMoving: true } : d
-      )
-    );
-
     const startTime = Date.now();
     const initialProgress: TaskProgress = {
-      taskId,
+      taskId: task.id,
       startTime,
       path: [[task.startPosition[0], task.startPosition[1]]],
       currentPosition: [task.startPosition[0], task.startPosition[1]],
       elapsedMs: 0,
     };
-    setTaskProgresses((prev) => [...prev, initialProgress]);
+    
+    // Eski progress'i temizle ve yenisini ekle
+    setTaskProgresses((prev) => {
+      const filtered = prev.filter(tp => tp.taskId !== task.id);
+      return [...filtered, initialProgress];
+    });
 
     const worker = new Worker(new URL('./workers/taskWorker.js', import.meta.url), { type: 'module' });
 
@@ -130,7 +279,7 @@ const Map = () => {
 
       setDrones((prev) =>
         prev.map((d) =>
-          d.id === task.droneId
+          d.id === droneId
             ? { ...d, position: [currentPosition[0], currentPosition[1], task.startPosition[2]] }
             : d
         )
@@ -138,7 +287,7 @@ const Map = () => {
 
       setTaskProgresses((prev) =>
         prev.map((tp) =>
-          tp.taskId === taskId
+          tp.taskId === task.id
             ? {
                 ...tp,
                 currentPosition,
@@ -149,39 +298,107 @@ const Map = () => {
         )
       );
 
-      if (isDone) {
-        setDrones((prev) =>
-          prev.map((d) =>
-            d.id === task.droneId
-              ? {
-                  ...d,
-                  isMoving: false,
-                  position: [
-                    task.targetPosition[0],
-                    task.targetPosition[1],
-                    task.targetPosition[2],
-                  ],
-                }
-              : d
-          )
-        );
+    if (isDone) {
+  console.log('Görev tamamlandı:', task.id);
 
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === taskId
-              ? {
-                  ...t,
-                  status: "completed",
-                  actualDuration: Math.round(elapsed / 1000),
-                }
-              : t
-          )
-        );
+  worker.terminate(); // Önce worker'ı durdur
 
-        worker.terminate();
-      }
+  setDrones(prev =>
+    prev.map(d =>
+      d.id === droneId
+        ? {
+            ...d,
+            isMoving: false,
+            position: [
+              task.targetPosition[0],
+              task.targetPosition[1],
+              task.targetPosition[2],
+            ],
+          }
+        : d
+    )
+  );
+
+  setTasks(prev =>
+    prev.map(t =>
+      t.id === task.id
+        ? {
+            ...t,
+            status: "completed",
+            actualDuration: Math.round(elapsed / 1000),
+          }
+        : t
+    )
+  );
+
+  // Path güncellenmesini durdurmak için progress'i sabitle
+setTaskProgresses((prev) =>
+  prev.map((tp) =>
+    tp.taskId === task.id
+      ? { ...tp, currentPosition: [task.targetPosition[0], task.targetPosition[1]] }
+      : tp
+  )
+);
+
+  // Sonraki göreve geç
+  setTimeout(() => {
+    startNextTaskForDroneSimple(droneId);
+  }, 10);
+}
 
     };
+  };
+
+  const handleStartAllTasks = () => {
+  const pendingTasks = tasks.filter(task => task.status === 'pending');
+  if (pendingTasks.length === 0) return;
+
+  const tasksByDrone: { [droneId: number]: Task[] } = {};
+
+  pendingTasks.forEach(task => {
+    if (!tasksByDrone[task.droneId]) {
+      tasksByDrone[task.droneId] = [];
+    }
+    tasksByDrone[task.droneId].push(task);
+  });
+
+  const newQueues: DroneTaskQueue[] = Object.entries(tasksByDrone).map(([droneIdStr, droneTasks]) => {
+    const droneId = parseInt(droneIdStr);
+    const sortedTasks = droneTasks.sort((a, b) => a.id - b.id);
+    return {
+      droneId,
+      taskIds: sortedTasks.map(t => t.id),
+      isProcessing: true
+    };
+  });
+
+  // Start tasks immediately after setting queues
+  setDroneTaskQueues(newQueues);
+
+  //Use queue directly (not waiting for state update)
+  newQueues.forEach(queue => {
+    startNextTaskForDroneSimple(queue.droneId);
+  });
+};
+
+
+
+  // Eski handleStartTask fonksiyonunu tek görev için koruyoruz
+  const handleStartTask = (taskId: number) => {
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    const drone = drones.find((d) => d.id === task.droneId);
+    if (!drone) return;
+
+    // Görevi aktif yap
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === taskId ? { ...t, status: "active" } : t
+      )
+    );
+
+    executeTask(task, task.droneId);
   };
 
   const handleTargetSelect = (position: [number, number]) => {
@@ -197,11 +414,11 @@ const Map = () => {
     : null;
 
   const getTaskRoutes = () => {
-  return tasks.map((task) => {
-    const progress = taskProgresses.find((tp) => tp.taskId === task.id);
-    return { task, progress };
-  });
-};
+    return tasks.map((task) => {
+      const progress = taskProgresses.find((tp) => tp.taskId === task.id);
+      return { task, progress };
+    });
+  };
 
   return (
     <div className="flex h-screen w-full">
@@ -213,6 +430,7 @@ const Map = () => {
         onAddDrone={handleAddDrone}
         onAddTask={() => setIsTaskDialogOpen(true)}
         onStartTask={handleStartTask}
+        onStartAllTasks={handleStartAllTasks} // Yeni prop
       />
 
       <div className="w-3/4 relative">
@@ -315,6 +533,7 @@ const Map = () => {
       <TaskDialog
         isOpen={isTaskDialogOpen && !isTaskDialogTemporarilyHidden}
         drone={selectedDrone}
+        tasks={tasks}
         onClose={() => setIsTaskDialogOpen(false)}
         onAddTask={handleAddTask}
         onSelectTarget={(callback) => {
@@ -326,6 +545,7 @@ const Map = () => {
           setIsTaskDialogTemporarilyHidden(true);
         }}
       />
+      
     </div>
   );
 };
