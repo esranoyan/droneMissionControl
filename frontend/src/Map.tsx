@@ -152,9 +152,20 @@ const Map = () => {
       if (isDone) {
         setDrones((prev) =>
           prev.map((d) =>
-            d.id === task.droneId ? { ...d, isMoving: false } : d
+            d.id === task.droneId
+              ? {
+                  ...d,
+                  isMoving: false,
+                  position: [
+                    task.targetPosition[0],
+                    task.targetPosition[1],
+                    task.targetPosition[2],
+                  ],
+                }
+              : d
           )
         );
+
         setTasks((prev) =>
           prev.map((t) =>
             t.id === taskId
@@ -166,8 +177,10 @@ const Map = () => {
               : t
           )
         );
+
         worker.terminate();
       }
+
     };
   };
 
@@ -182,16 +195,6 @@ const Map = () => {
   const selectedDrone = selectedDroneId
     ? drones.find((d) => d.id === selectedDroneId) || null
     : null;
-
-  // const getTaskRoutes = () => {
-  //   return tasks
-  //     .filter((task) => task.status === "active" || task.status === "completed")
-  //     .map((task) => {
-  //       const progress = taskProgresses.find((tp) => tp.taskId === task.id);
-  //       return { task, progress };
-  //     })
-  //     .filter(({ progress }) => progress !== undefined);
-  // };
 
   const getTaskRoutes = () => {
   return tasks.map((task) => {

@@ -137,7 +137,7 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onStartTask }) => {
                       <div className="text-xs mt-1">
                         <div className="flex justify-between items-center">
                           <span className="text-gray-600">
-                            ⏱️ Gerçek süre: {formatTime(task.actualDuration)}
+                            Gerçek süre: {formatTime(task.actualDuration)}
                           </span>
                           <span className="text-gray-500">
                             Planlanan: {formatTime(task.duration)}
