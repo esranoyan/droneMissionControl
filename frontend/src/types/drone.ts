@@ -29,7 +29,6 @@ export interface DroneListProps {
 export interface TaskListProps {
   tasks: Task[];
   onStartTask: (taskId: number) => void;
-  onStartAllTasks?: () => void; // Yeni prop
 }
 
 export interface DroneMarkerProps {
@@ -45,7 +44,6 @@ export interface ControlPanelProps {
   onAddTask: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onAddDrone: () => void;
   onStartTask: (taskId: number) => void;
-  onStartAllTasks?: () => void; // Yeni prop
   // onRemoveDrone: (id: number) => void;
 }
 
@@ -63,4 +61,10 @@ export interface TaskProgress {
   path: [number, number][];
   currentPosition: [number, number];
   elapsedMs: number;
+}
+
+export interface DroneTaskQueue {
+  droneId: number;
+  taskIds: number[];
+  isProcessing: boolean;
 }

@@ -3,14 +3,14 @@ import { type TaskDialogProps, type Task } from "../types/drone";
 
 const TaskDialog: React.FC<TaskDialogProps & { 
   onSelectTarget: (callback: (position: [number, number]) => void) => void;
-  tasks?: Task[]; // Mevcut görevleri almak için
+  tasks?: Task[];
 }> = ({
   isOpen,
   drone,
   onClose,
   onAddTask,
   onSelectTarget,
-  tasks = [], // Varsayılan değer
+  tasks = [],
 }) => {
   const [targetPosition, setTargetPosition] = useState<[number, number, number] | null>(null);
   const [duration, setDuration] = useState<string>("");
@@ -25,7 +25,7 @@ const TaskDialog: React.FC<TaskDialogProps & {
     // Bu drone'un beklemedeki veya aktif görevlerini bul
     const droneExistingTasks = tasks
       .filter(t => t.droneId === drone.id && t.status !== 'completed')
-      .sort((a, b) => b.id - a.id); // En son eklenen görev ilk sırada
+      .sort((a, b) => b.id - a.id);
 
     if (droneExistingTasks.length > 0) {
       // Son görevin hedef pozisyonunu döndür
@@ -61,7 +61,7 @@ const TaskDialog: React.FC<TaskDialogProps & {
 
   const handleSelectTarget = () => {
     onSelectTarget((position: [number, number]) => {
-      setTargetPosition([position[0], position[1], 850]); // Varsayılan yükseklik
+      setTargetPosition([position[0], position[1], 850]);
     });
   };
 
@@ -77,13 +77,13 @@ const TaskDialog: React.FC<TaskDialogProps & {
       return;
     }
 
-    // Başlangıç pozisyonunu hesapla (Map.tsx'te de yapılıyor ama burada gösterim için)
+    // Başlangıç pozisyonunu hesapla
     const startPosition = getNextTaskStartPosition();
 
     const taskData: Omit<Task, 'id'> = {
       droneId: drone.id,
       droneName: drone.name,
-      startPosition: startPosition, // Hesaplanan başlangıç pozisyonu
+      startPosition: startPosition,
       targetPosition: targetPosition,
       duration: parseInt(duration),
       description: description.trim(),

@@ -5,7 +5,7 @@ interface ExtendedTaskListProps extends TaskListProps {
   onStartAllTasks?: () => void;
 }
 
-const TaskList: React.FC<ExtendedTaskListProps> = ({ tasks, onStartTask, onStartAllTasks }) => {
+const TaskList: React.FC<ExtendedTaskListProps> = ({ tasks, onStartTask}) => {
   const [elapsedTimes, setElapsedTimes] = useState<Record<number, number>>({});
 
   const pendingTasks = tasks.filter(task => task.status === 'pending');
@@ -193,7 +193,7 @@ const TaskList: React.FC<ExtendedTaskListProps> = ({ tasks, onStartTask, onStart
             </div>
           )}
 
-          {/* Görev Başlatma Butonları */}
+          {/* Görev Başlatma Butonu*/}
           {pendingTasks.length > 0 && (
             <div className="space-y-2">
               <button
