@@ -30,5 +30,3 @@ export class MilStdIcon {
 
 // Farklı tip ikonlar için yardımcı fonksiyonlar
 export const createDroneIcon = () => new MilStdIcon("🟦 ♦️ SUAS ISR");
-export const createTankIcon = () => new MilStdIcon("🟨 ▬ TANK");
-export const createInfantryIcon = () => new MilStdIcon("🟩 ● INFANTRY");

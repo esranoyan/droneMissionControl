@@ -6,6 +6,10 @@ import ControlPanel from "./components/ControlPanel";
 import DroneMarker from "./components/DroneMarker";
 import TaskDialog from "./components/TaskDialog";
 import { type Drone, type DroneTaskQueue, type Task, type TaskProgress } from "./types/drone";
+import { useDroneData } from "./hooks/useDroneData";
+import { DroneService } from "./services/droneService";
+import { TaskService } from "./services/taskService";
+import { MissionService } from "./services/missionService";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -42,8 +46,19 @@ const Map = () => {
 
   const mapRef = useRef<L.Map | null>(null);
 
-  const [drones, setDrones] = useState<Drone[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  // Veritabanı hook'u kullan
+  const { 
+    drones, 
+    tasks, 
+    loading, 
+    error, 
+    loadData, 
+    addDrone, 
+    addTask, 
+    updateTaskStatus 
+  } = useDroneData();
+
+  // Local state'ler
   const [selectedDroneId, setSelectedDroneId] = useState<number | null>(null);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isTaskDialogTemporarilyHidden, setIsTaskDialogTemporarilyHidden] = useState(false);
@@ -51,59 +66,73 @@ const Map = () => {
   const [targetSelectCallback, setTargetSelectCallback] =
     useState<((position: [number, number]) => void) | null>(null);
 
+  // Simülasyon ile ilgili state'ler
   const [taskProgresses, setTaskProgresses] = useState<TaskProgress[]>([]);
   const [droneTaskQueues, setDroneTaskQueues] = useState<DroneTaskQueue[]>([]);
+  const [currentMissionSession, setCurrentMissionSession] = useState<number | null>(null);
+
+  // Hata gösterimi
+  useEffect(() => {
+    if (error) {
+      console.error('Veritabanı hatası:', error);
+    }
+  }, [error]);
 
   const handleSelectDrone = (id: number) => {
     setSelectedDroneId(id);
   };
 
-  const handleAddDrone = () => {
-    const map = mapRef.current;
-    if (!map) return;
+  const handleAddDrone = async () => {
+    try {
+      const map = mapRef.current;
+      if (!map) return;
 
-    const center = map.getCenter();
-    const newDrone: Drone = {
-      id: Date.now(),
-      name: `İHA-${String(drones.length + 1).padStart(3, "0")}`,
-      position: [center.lat, center.lng, ankara[2]],
-      isMoving: false,
-    };
-    setDrones((prev) => [...prev, newDrone]);
+      const center = map.getCenter();
+      const name = `İHA-${String(drones.length + 1).padStart(3, "0")}`;
+      const position: [number, number, number] = [center.lat, center.lng, ankara[2]];
+
+      await addDrone(name, position);
+      console.log('Yeni drone eklendi:', name);
+    } catch (error) {
+      console.error('Drone eklenirken hata:', error);
+    }
   };
 
-  const handleAddTask = (taskData: Omit<Task, "id">) => {
-    // Bu drone için var olan görevleri kontrol et
-    const droneExistingTasks = tasks.filter(t => t.droneId === taskData.droneId);
-    const drone = drones.find(d => d.id === taskData.droneId);
-    
-    let startPosition = taskData.startPosition;
-    
-    if (droneExistingTasks.length > 0) {
-      // Bu drone'un son görevinin hedef pozisyonunu bul
-      const lastTask = droneExistingTasks
-        .filter(t => t.status !== 'completed') 
-        .sort((a, b) => b.id - a.id)[0]; // En son eklenen görev
+  const handleAddTask = async (taskData: Omit<Task, "id">) => {
+    try {
+      // Bu drone için var olan görevleri kontrol et
+      const droneExistingTasks = tasks.filter(t => 
+        t.droneId === taskData.droneId && t.status !== 'completed'
+      );
+      const drone = drones.find(d => d.id === taskData.droneId);
       
-      if (lastTask) {
-        // Son görevin hedef pozisyonunu bu görevin başlangıç pozisyonu yap
-        startPosition = lastTask.targetPosition;
-      } else {
-        // Tüm görevler tamamlanmışsa drone'un mevcut pozisyonunu kullan
-        startPosition = drone ? drone.position : taskData.startPosition;
+      let startPosition = taskData.startPosition;
+      
+      if (droneExistingTasks.length > 0) {
+        // Bu drone'un son görevinin hedef pozisyonunu bul
+        const lastTask = droneExistingTasks
+          .sort((a, b) => b.id - a.id)[0]; // En son eklenen görev
+        
+        if (lastTask) {
+          // Son görevin hedef pozisyonunu bu görevin başlangıç pozisyonu yap
+          startPosition = lastTask.targetPosition;
+        }
+      } else if (drone) {
+        // İlk görevse drone'un mevcut pozisyonunu kullan
+        startPosition = drone.position;
       }
-    } else {
-      // İlk görevse drone'un mevcut pozisyonunu kullan
-      startPosition = drone ? drone.position : taskData.startPosition;
-    }
 
-    const newTask: Task = {
-      ...taskData,
-      startPosition,
-      id: Date.now(),
-    };
-    setTasks([...tasks, newTask]);
-    setIsTaskDialogOpen(false);
+      const newTaskData: Omit<Task, 'id'> = {
+        ...taskData,
+        startPosition,
+      };
+
+      await addTask(newTaskData);
+      setIsTaskDialogOpen(false);
+      console.log('Yeni görev eklendi:', newTaskData.description);
+    } catch (error) {
+      console.error('Görev eklenirken hata:', error);
+    }
   };
 
   const [pendingTaskStart, setPendingTaskStart] = useState<{droneId: number, taskId: number} | null>(null);
@@ -116,27 +145,21 @@ const Map = () => {
       const task = tasks.find(t => t.id === taskId);
       
       if (drone && task) {
-        const updatedTask = {
-          ...task,
-          startPosition: [...drone.position] as [number, number, number]
-        };
-        
-        setTasks(prev => prev.map(t => 
-          t.id === taskId 
-            ? { ...t, status: "active" as const, startPosition: updatedTask.startPosition }
-            : t
-        ));
-        
-        setDrones(prev => prev.map(d =>
-          d.id === droneId ? { ...d, isMoving: true } : d
-        ));
-        
-        executeTask(updatedTask, droneId);
+        // Veritabanında görevi aktif yap
+        updateTaskStatus(taskId, 'active').then(() => {
+          // Drone pozisyonunu güncelle (hareket halinde olarak işaretle)
+          DroneService.updateDronePosition(droneId, drone.position, true);
+          
+          // Simülasyonu başlat
+          executeTask(task, droneId);
+        }).catch(error => {
+          console.error('Görev başlatılırken hata:', error);
+        });
       }
       
       setPendingTaskStart(null);
     }
-  }, [pendingTaskStart, drones, tasks]);
+  }, [pendingTaskStart, drones, tasks, updateTaskStatus]);
 
   const startNextTaskForDroneSimple = (droneId: number) => {
     const queue = droneTaskQueues.find(q => q.droneId === droneId);
@@ -163,8 +186,13 @@ const Map = () => {
     setPendingTaskStart({ droneId, taskId: nextTaskId });
   };
 
-  const executeTask = (task: Task, droneId: number) => {
-    console.log('executeTask başladı:', { taskId: task.id, droneId, startPos: task.startPosition, targetPos: task.targetPosition });
+  const executeTask = async (task: Task, droneId: number) => {
+    console.log('executeTask başladı:', { 
+      taskId: task.id, 
+      droneId, 
+      startPos: task.startPosition, 
+      targetPos: task.targetPosition 
+    });
     
     const duration = task.duration * 1000;
     const interval = 1000 / 30;
@@ -194,93 +222,128 @@ const Map = () => {
       interval,
     });
 
-    worker.onmessage = (e) => {
+    worker.onmessage = async (e) => {
       const { currentPosition, elapsed, isDone } = e.data;
 
-      setDrones((prev) =>
-        prev.map((d) =>
-          d.id === droneId
-            ? { ...d, position: [currentPosition[0], currentPosition[1], task.startPosition[2]] }
-            : d
-        )
-      );
+      try {
+        // Drone pozisyonunu veritabanında güncelle
+        const newPosition: [number, number, number] = [
+          currentPosition[0], 
+          currentPosition[1], 
+          task.startPosition[2]
+        ];
+        
+        await DroneService.updateDronePosition(droneId, newPosition, !isDone);
 
-      setTaskProgresses((prev) =>
-        prev.map((tp) =>
-          tp.taskId === task.id
-            ? {
-                ...tp,
-                currentPosition,
-                elapsedMs: elapsed,
-                path: elapsed % 1000 < 16 ? [...tp.path, currentPosition] : tp.path,
-              }
-            : tp
-        )
-      );
+        // Task progress'i veritabanında kaydet (her saniyede bir)
+        if (elapsed % 1000 < 50) { 
+          const progressPercentage = (elapsed / duration) * 100;
+          await TaskService.recordTaskProgress(
+            task.id,
+            [currentPosition[0], currentPosition[1], task.startPosition[2]],
+            elapsed,
+            progressPercentage
+          );
+        }
 
-    if (isDone) {
-  console.log('Görev tamamlandı:', task.id);
+        // Local state güncellemeleri
+        setTaskProgresses((prev) =>
+          prev.map((tp) =>
+            tp.taskId === task.id
+              ? {
+                  ...tp,
+                  currentPosition,
+                  elapsedMs: elapsed,
+                  path: elapsed % 1000 < 16 ? [...tp.path, currentPosition] : tp.path,
+                }
+              : tp
+          )
+        );
 
-  worker.terminate();
+        if (isDone) {
+          console.log('Görev tamamlandı:', task.id);
 
-  setDrones(prev =>
-    prev.map(d =>
-      d.id === droneId
-        ? {
-            ...d,
-            isMoving: false,
-            position: [
-              task.targetPosition[0],
-              task.targetPosition[1],
-              task.targetPosition[2],
-            ],
-          }
-        : d
-    )
-  );
+          worker.terminate();
 
-  setTasks(prev =>
-    prev.map(t =>
-      t.id === task.id
-        ? {
-            ...t,
-            status: "completed",
-            actualDuration: Math.round(elapsed / 1000),
-          }
-        : t
-    )
-  );
+          // Veritabanında görevi tamamla
+          await updateTaskStatus(task.id, 'completed');
+          
+          // Drone'u hedef pozisyonda durdurulan olarak işaretle
+          await DroneService.updateDronePosition(
+            droneId, 
+            task.targetPosition, 
+            false
+          );
 
-setTaskProgresses((prev) =>
-  prev.map((tp) =>
-    tp.taskId === task.id
-      ? { ...tp, currentPosition: [task.targetPosition[0], task.targetPosition[1]] }
-      : tp
-  )
-);
+          // Local progress state'ini güncelle
+          setTaskProgresses((prev) =>
+            prev.map((tp) =>
+              tp.taskId === task.id
+                ? { ...tp, currentPosition: [task.targetPosition[0], task.targetPosition[1]] }
+                : tp
+            )
+          );
 
-  setTimeout(() => {
-    startNextTaskForDroneSimple(droneId);
-  }, 10);
-}
+          // Verileri yeniden yükle (güncel durumu al)
+          setTimeout(() => {
+            loadData();
+            startNextTaskForDroneSimple(droneId);
+          }, 100);
+        }
+      } catch (error) {
+        console.error('Görev simülasyonu sırasında hata:', error);
+      }
+    };
 
+    worker.onerror = (error) => {
+      console.error('Worker hatası:', error);
+      worker.terminate();
     };
   };
 
-  const handleStartTask = (taskId: number) => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
+  const handleStartTask = async (taskId: number) => {
+    try {
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) return;
 
-    const drone = drones.find((d) => d.id === task.droneId);
-    if (!drone) return;
+      const drone = drones.find((d) => d.id === task.droneId);
+      if (!drone) return;
 
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === taskId ? { ...t, status: "active" } : t
-      )
-    );
+      await updateTaskStatus(taskId, 'active');
+      executeTask(task, task.droneId);
+    } catch (error) {
+      console.error('Görev başlatılırken hata:', error);
+    }
+  };
 
-    executeTask(task, task.droneId);
+  // Tüm bekleyen görevleri başlat
+  const handleStartAllTasks = async () => {
+    try {
+      if (!currentMissionSession) {
+        // Yeni mission session oluştur
+        const session = await MissionService.createMissionSession(
+          `Mission ${new Date().toLocaleString()}`,
+          'Toplu görev başlatma'
+        );
+        setCurrentMissionSession(session.id);
+        
+        // Session'ı başlat
+        await MissionService.updateSessionStatus(session.id, 'running');
+      }
+
+      const pendingTasks = tasks.filter(t => t.status === 'pending');
+      
+      for (const task of pendingTasks) {
+        // Kısa bir gecikme ile görevleri başlat
+        setTimeout(() => {
+          handleStartTask(task.id);
+        }, task.id % 1000); // ID'ye göre rastgele gecikme
+      }
+
+      console.log(`${pendingTasks.length} görev başlatıldı`);
+    } catch (error) {
+      console.error('Toplu görev başlatma hatası:', error);
+    }
   };
 
   const handleTargetSelect = (position: [number, number]) => {
@@ -302,6 +365,15 @@ setTaskProgresses((prev) =>
     });
   };
 
+  // Loading durumu
+  if (loading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <div className="text-lg">Veriler yükleniyor...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen w-full">
       <ControlPanel
@@ -312,12 +384,28 @@ setTaskProgresses((prev) =>
         onAddDrone={handleAddDrone}
         onAddTask={() => setIsTaskDialogOpen(true)}
         onStartTask={handleStartTask}
+        onStartAllTasks={handleStartAllTasks}
       />
 
       <div className="w-3/4 relative">
+        {/* Error gösterimi */}
+        {error && (
+          <div className="absolute top-4 left-4 bg-red-500 text-white px-4 py-2 rounded z-[1000]">
+            Hata: {error}
+          </div>
+        )}
+
+        {/* Target selection gösterimi */}
         {isSelectingTarget && (
           <div className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded z-[1000]">
             Hedef nokta seçmek için haritaya tıklayın
+          </div>
+        )}
+
+        {/* Mission session durumu */}
+        {currentMissionSession && (
+          <div className="absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded z-[1000]">
+            Mission Session: {currentMissionSession}
           </div>
         )}
 
@@ -426,7 +514,6 @@ setTaskProgresses((prev) =>
           setIsTaskDialogTemporarilyHidden(true);
         }}
       />
-      
     </div>
   );
 };

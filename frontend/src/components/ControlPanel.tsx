@@ -10,7 +10,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onAddDrone,
   onAddTask,
   onStartTask,
-  onStartAllTasks,
 }) => {
   return (
     <div className="w-1/4 bg-gray-100 p-4 overflow-y-auto">
@@ -54,7 +53,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <TaskList
             tasks={tasks}
             onStartTask={onStartTask}
-            onStartAllTasks={onStartAllTasks}
           />
         </div>
 

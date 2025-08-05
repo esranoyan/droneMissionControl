@@ -44,6 +44,7 @@ export interface ControlPanelProps {
   onAddTask: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onAddDrone: () => void;
   onStartTask: (taskId: number) => void;
+  onStartAllTasks: () => void;
   // onRemoveDrone: (id: number) => void;
 }
 
@@ -67,4 +68,17 @@ export interface DroneTaskQueue {
   droneId: number;
   taskIds: number[];
   isProcessing: boolean;
+}
+
+export interface MissionSession {
+  id: number;
+  sessionName: string;
+  description?: string;
+  status: 'created' | 'running' | 'paused' | 'completed' | 'failed';
+  totalDrones: number;
+  totalTasks: number;
+  completedTasks: number;
+  startedAt?: Date;
+  completedAt?: Date;
+  createdAt: Date;
 }
