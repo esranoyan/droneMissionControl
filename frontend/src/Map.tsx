@@ -5,7 +5,7 @@ import L from "leaflet";
 import ControlPanel from "./components/ControlPanel";
 import DroneMarker from "./components/DroneMarker";
 import TaskDialog from "./components/TaskDialog";
-import { type Drone, type DroneTaskQueue, type Task, type TaskProgress } from "./types/drone";
+import {type DroneTaskQueue, type Task, type TaskProgress } from "./types/drone";
 import { useDroneData } from "./hooks/useDroneData";
 import { DroneService } from "./services/droneService";
 import { TaskService } from "./services/taskService";
