@@ -12,7 +12,6 @@ interface DroneRow {
   position_lng: number;
   position_alt: number;
   is_moving: boolean;
-  battery_level: number;
   status: string;
 }
 
@@ -22,25 +21,50 @@ function formatDrone(row: DroneRow) {
     name: row.name,
     position: [row.position_lat, row.position_lng, row.position_alt],
     isMoving: row.is_moving,
-    batteryLevel: row.battery_level,
     status: row.status,
   };
 }
 
+// 🔧 Test route
+router.get('/test', (req, res) => {
+  res.json({
+    message: 'Drone routes are working!',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // GET /api/drones - Tüm drone'ları getir
 router.get('/', async (req, res) => {
   try {
+    console.log('🔄 Drones API çağrıldı');
+
+    // Tablonun var olup olmadığını kontrol et
+    const tableCheck = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'drones'
+      );
+    `);
+
+    if (!tableCheck.rows[0].exists) {
+      return res.status(500).json({ error: 'Drones tablosu mevcut değil' });
+    }
+
     const result = await pool.query(`
-      SELECT id, name, position_lat, position_lng, position_alt, is_moving, battery_level, status
+      SELECT id, name, position_lat, position_lng, position_alt, is_moving
       FROM drones 
       ORDER BY id
     `);
 
     const drones = result.rows.map(formatDrone);
     res.json(drones);
-  } catch (error) {
-    console.error('Dronelar getirilirken hata:', error);
-    res.status(500).json({ error: 'Dronelar getirilemedi' });
+  } catch (error: any) {
+    console.error('❌ Dronelar getirilirken hata:', error);
+    res.status(500).json({
+      error: 'Dronelar getirilemedi',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
   }
 });
 
@@ -50,14 +74,14 @@ router.post('/', async (req, res) => {
     const { name, position }: { name?: string; position?: DronePosition } = req.body;
 
     if (!name || !position) {
-      return res.status(400).json({ error: 'Name ve position gerekli' });
+      return res.status(400).json({ error: 'Name ve position (lat, lng, alt) gerekli' });
     }
 
     let lat: number, lng: number, alt: number;
 
     if (Array.isArray(position)) {
       if (position.length !== 3) {
-        return res.status(400).json({ error: 'Pozisyon dizisi 3 elemanlı olmalı (lat, lng, alt)' });
+        return res.status(400).json({ error: 'Pozisyon 3 elemanlı bir dizi olmalı' });
       }
       [lat, lng, alt] = position;
     } else if (
@@ -76,7 +100,7 @@ router.post('/', async (req, res) => {
 
     const result = await pool.query(
       `
-      INSERT INTO drones (name, position_lat, position_lng, position_alt, battery_level, status)
+      INSERT INTO drones (name, position_lat, position_lng, position_alt)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `,
@@ -85,7 +109,7 @@ router.post('/', async (req, res) => {
 
     const drone = formatDrone(result.rows[0]);
     res.status(201).json(drone);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Drone eklenirken hata:', error);
     res.status(500).json({ error: 'Drone eklenemedi' });
   }
@@ -105,7 +129,7 @@ router.patch('/:id/position', async (req, res) => {
 
     if (Array.isArray(position)) {
       if (position.length !== 3) {
-        return res.status(400).json({ error: 'Pozisyon dizisi 3 elemanlı olmalı (lat, lng, alt)' });
+        return res.status(400).json({ error: 'Pozisyon 3 elemanlı bir dizi olmalı' });
       }
       [lat, lng, alt] = position;
     } else if (
@@ -138,7 +162,7 @@ router.patch('/:id/position', async (req, res) => {
 
     const drone = formatDrone(result.rows[0]);
     res.json(drone);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Drone pozisyonu güncellenirken hata:', error);
     res.status(500).json({ error: 'Drone pozisyonu güncellenemedi' });
   }
@@ -156,7 +180,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     res.json({ message: 'Drone silindi', success: true });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Drone silinirken hata:', error);
     res.status(500).json({ error: 'Drone silinemedi' });
   }

@@ -7,8 +7,14 @@ import dotenv from 'dotenv';
 
 // Routes import
 import droneRoutes from './routes/drones';
-import taskRoutes from './routes/tasks';
+import taskRoutes from './routes/tasks'; 
 import serverRoutes from './routes/server';
+
+// Test route imports
+console.log('🔄 Loading routes...');
+console.log('Drone routes loaded:', !!droneRoutes);
+console.log('Task routes loaded:', !!taskRoutes);
+console.log('Server routes loaded:', !!serverRoutes);
 
 // Load environment variables
 dotenv.config();
@@ -38,7 +44,20 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Health check
+// Health check ve root route
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Drone Management API', 
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      drones: '/api/drones',
+      tasks: '/api/tasks',
+      server: '/api/server'
+    }
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -47,10 +66,39 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/drones', droneRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/server', serverRoutes);
+// API base route
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'Drone Management API v1.0.0',
+    endpoints: {
+      drones: '/api/drones',
+      tasks: '/api/tasks',
+      server: '/api/server'
+    }
+  });
+});
+
+// API Routes with debugging
+try {
+  app.use('/api/drones', droneRoutes);
+  console.log('✅ Drone routes registered');
+} catch (error) {
+  console.error('❌ Error loading drone routes:', error);
+}
+
+try {
+  app.use('/api/tasks', taskRoutes);
+  console.log('✅ Task routes registered');
+} catch (error) {
+  console.error('❌ Error loading task routes:', error);
+}
+
+try {
+  app.use('/api/server', serverRoutes);
+  console.log('✅ Server routes registered');
+} catch (error) {
+  console.error('❌ Error loading server routes:', error);
+}
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -75,10 +123,9 @@ app.use('*', (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
-  console.log(`API Base URL: http://localhost:${PORT}/api`);
-  // //http://localhost:3000/api/drones json dosyalarını görmek için
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`🎯 API Base URL: http://localhost:${PORT}/api`);
 });
 
 export default app;
