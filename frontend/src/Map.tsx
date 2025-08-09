@@ -5,7 +5,7 @@ import L from "leaflet";
 import ControlPanel from "./components/ControlPanel";
 import DroneMarker from "./components/DroneMarker";
 import TaskDialog from "./components/TaskDialog";
-import {type DroneTaskQueue, type Task, type TaskProgress } from "./types/drone";
+import { type DroneTaskQueue, type Task, type TaskProgress } from "./types/drone";
 import { useDroneData } from "./hooks/useDroneData";
 import { DroneService } from "./services/droneService";
 import { TaskService } from "./services/taskService";
@@ -37,13 +37,34 @@ const MapClickHandler = ({
 
 const MapInitializer = ({ onInit }: { onInit: (map: L.Map) => void }) => {
   const map = useMap();
-  onInit(map);
+  useEffect(() => {
+    onInit(map);
+  }, [map, onInit]);
+  return null;
+};
+
+
+const MapEventsHandler = ({
+  setCenter,
+  setZoom,
+}: {
+  setCenter: (center: [number, number]) => void;
+  setZoom: (zoom: number) => void;
+}) => {
+  const map = useMapEvents({
+    moveend: () => {
+      const center = map.getCenter();
+      setCenter([center.lat, center.lng]);
+    },
+    zoomend: () => {
+      setZoom(map.getZoom());
+    },
+  });
   return null;
 };
 
 const Map = () => {
   const ankara: [number, number, number] = [39.92077, 32.85411, 850];
-
   const mapRef = useRef<L.Map | null>(null);
 
   // Veritabanı hook'u kullan
@@ -57,6 +78,10 @@ const Map = () => {
     addTask, 
     updateTaskStatus 
   } = useDroneData();
+
+  //Harita konumu ve zoom seviyesi için state'ler
+  const [mapCenter, setMapCenter] = useState<[number, number]>([ankara[0], ankara[1]]);
+  const [mapZoom, setMapZoom] = useState<number>(13);
 
   // Local state'ler
   const [selectedDroneId, setSelectedDroneId] = useState<number | null>(null);
@@ -86,11 +111,8 @@ const Map = () => {
     try {
       const map = mapRef.current;
       if (!map) return;
-
-      const center = map.getCenter();
       const name = `İHA-${String(drones.length + 1).padStart(3, "0")}`;
-      const position: [number, number, number] = [center.lat, center.lng, ankara[2]];
-
+      const position: [number, number, number] = [ankara[0], ankara[1], ankara[2]];
       await addDrone(name, position);
       console.log('Yeni drone eklendi:', name);
     } catch (error) {
@@ -100,7 +122,6 @@ const Map = () => {
 
   const handleAddTask = async (taskData: Omit<Task, "id">) => {
     try {
-      // Bu drone için var olan görevleri kontrol et
       const droneExistingTasks = tasks.filter(t => 
         t.droneId === taskData.droneId && t.status !== 'completed'
       );
@@ -109,16 +130,12 @@ const Map = () => {
       let startPosition = taskData.startPosition;
       
       if (droneExistingTasks.length > 0) {
-        // Bu drone'un son görevinin hedef pozisyonunu bul
         const lastTask = droneExistingTasks
-          .sort((a, b) => b.id - a.id)[0]; // En son eklenen görev
-        
+          .sort((a, b) => b.id - a.id)[0];
         if (lastTask) {
-          // Son görevin hedef pozisyonunu bu görevin başlangıç pozisyonu yap
           startPosition = lastTask.targetPosition;
         }
       } else if (drone) {
-        // İlk görevse drone'un mevcut pozisyonunu kullan
         startPosition = drone.position;
       }
 
@@ -140,23 +157,17 @@ const Map = () => {
   useEffect(() => {
     if (pendingTaskStart) {
       const { droneId, taskId } = pendingTaskStart;
-      
       const drone = drones.find(d => d.id === droneId);
       const task = tasks.find(t => t.id === taskId);
       
       if (drone && task) {
-        // Veritabanında görevi aktif yap
         updateTaskStatus(taskId, 'active').then(() => {
-          // Drone pozisyonunu güncelle (hareket halinde olarak işaretle)
           DroneService.updateDronePosition(droneId, drone.position, true);
-          
-          // Simülasyonu başlat
           executeTask(task, droneId);
         }).catch(error => {
           console.error('Görev başlatılırken hata:', error);
         });
       }
-      
       setPendingTaskStart(null);
     }
   }, [pendingTaskStart, drones, tasks, updateTaskStatus]);
@@ -173,9 +184,7 @@ const Map = () => {
       );
       return;
     }
-
     const nextTaskId = queue.taskIds[0];
-    
     setDroneTaskQueues(prev =>
       prev.map(q =>
         q.droneId === droneId
@@ -187,16 +196,10 @@ const Map = () => {
   };
 
   const executeTask = async (task: Task, droneId: number) => {
-    console.log('executeTask başladı:', { 
-      taskId: task.id, 
-      droneId, 
-      startPos: task.startPosition, 
-      targetPos: task.targetPosition 
-    });
+    console.log('executeTask başladı:', { taskId: task.id, droneId, startPos: task.startPosition, targetPos: task.targetPosition });
     
     const duration = task.duration * 1000;
     const interval = 1000 / 30;
-
     const startTime = Date.now();
     const initialProgress: TaskProgress = {
       taskId: task.id,
@@ -214,68 +217,32 @@ const Map = () => {
     const worker = new Worker(new URL('./workers/taskWorker.js', import.meta.url), { type: 'module' });
 
     worker.postMessage({
-      task: {
-        start: task.startPosition,
-        end: task.targetPosition,
-      },
+      task: { start: task.startPosition, end: task.targetPosition },
       duration,
       interval,
     });
 
     worker.onmessage = async (e) => {
       const { currentPosition, elapsed, isDone } = e.data;
-
       try {
-        // Drone pozisyonunu veritabanında güncelle
-        const newPosition: [number, number, number] = [
-          currentPosition[0], 
-          currentPosition[1], 
-          task.startPosition[2]
-        ];
-        
+        const newPosition: [number, number, number] = [currentPosition[0], currentPosition[1], task.startPosition[2]];
         await DroneService.updateDronePosition(droneId, newPosition, !isDone);
-
-        // Task progress'i veritabanında kaydet (her saniyede bir)
         if (elapsed % 1000 < 50) { 
           const progressPercentage = (elapsed / duration) * 100;
-          await TaskService.recordTaskProgress(
-            task.id,
-            [currentPosition[0], currentPosition[1], task.startPosition[2]],
-            elapsed,
-            progressPercentage
-          );
+          await TaskService.recordTaskProgress(task.id, [currentPosition[0], currentPosition[1], task.startPosition[2]], elapsed, progressPercentage);
         }
-
-        // Local state güncellemeleri
         setTaskProgresses((prev) =>
           prev.map((tp) =>
             tp.taskId === task.id
-              ? {
-                  ...tp,
-                  currentPosition,
-                  elapsedMs: elapsed,
-                  path: elapsed % 1000 < 16 ? [...tp.path, currentPosition] : tp.path,
-                }
+              ? { ...tp, currentPosition, elapsedMs: elapsed, path: elapsed % 1000 < 16 ? [...tp.path, currentPosition] : tp.path }
               : tp
           )
         );
-
         if (isDone) {
           console.log('Görev tamamlandı:', task.id);
-
           worker.terminate();
-
-          // Veritabanında görevi tamamla
           await updateTaskStatus(task.id, 'completed');
-          
-          // Drone'u hedef pozisyonda durdurulan olarak işaretle
-          await DroneService.updateDronePosition(
-            droneId, 
-            task.targetPosition, 
-            false
-          );
-
-          // Local progress state'ini güncelle
+          await DroneService.updateDronePosition(droneId, task.targetPosition, false);
           setTaskProgresses((prev) =>
             prev.map((tp) =>
               tp.taskId === task.id
@@ -283,8 +250,6 @@ const Map = () => {
                 : tp
             )
           );
-
-          // Verileri yeniden yükle (güncel durumu al)
           setTimeout(() => {
             loadData();
             startNextTaskForDroneSimple(droneId);
@@ -294,7 +259,6 @@ const Map = () => {
         console.error('Görev simülasyonu sırasında hata:', error);
       }
     };
-
     worker.onerror = (error) => {
       console.error('Worker hatası:', error);
       worker.terminate();
@@ -305,10 +269,8 @@ const Map = () => {
     try {
       const task = tasks.find((t) => t.id === taskId);
       if (!task) return;
-
       const drone = drones.find((d) => d.id === task.droneId);
       if (!drone) return;
-
       await updateTaskStatus(taskId, 'active');
       executeTask(task, task.droneId);
     } catch (error) {
@@ -316,30 +278,19 @@ const Map = () => {
     }
   };
 
-  // Tüm bekleyen görevleri başlat
   const handleStartAllTasks = async () => {
     try {
       if (!currentMissionSession) {
-        // Yeni mission session oluştur
-        const session = await MissionService.createMissionSession(
-          `Mission ${new Date().toLocaleString()}`,
-          'Toplu görev başlatma'
-        );
+        const session = await MissionService.createMissionSession(`Mission ${new Date().toLocaleString()}`, 'Toplu görev başlatma');
         setCurrentMissionSession(session.id);
-        
-        // Session'ı başlat
         await MissionService.updateSessionStatus(session.id, 'running');
       }
-
       const pendingTasks = tasks.filter(t => t.status === 'pending');
-      
       for (const task of pendingTasks) {
-        // Kısa bir gecikme ile görevleri başlat
         setTimeout(() => {
           handleStartTask(task.id);
-        }, task.id % 1000); // ID'ye göre rastgele gecikme
+        }, task.id % 1000);
       }
-
       console.log(`${pendingTasks.length} görev başlatıldı`);
     } catch (error) {
       console.error('Toplu görev başlatma hatası:', error);
@@ -365,7 +316,6 @@ const Map = () => {
     });
   };
 
-  // Loading durumu
   if (loading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
@@ -386,23 +336,17 @@ const Map = () => {
         onStartTask={handleStartTask}
         onStartAllTasks={handleStartAllTasks}
       />
-
       <div className="w-3/4 relative">
-        {/* Error gösterimi */}
         {error && (
           <div className="absolute top-4 left-4 bg-red-500 text-white px-4 py-2 rounded z-[1000]">
             Hata: {error}
           </div>
         )}
-
-        {/* Target selection gösterimi */}
         {isSelectingTarget && (
           <div className="absolute top-4 left-4 bg-blue-500 text-white px-4 py-2 rounded z-[1000]">
             Hedef nokta seçmek için haritaya tıklayın
           </div>
         )}
-
-        {/* Mission session durumu */}
         {currentMissionSession && (
           <div className="absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded z-[1000]">
             Mission Session: {currentMissionSession}
@@ -410,22 +354,23 @@ const Map = () => {
         )}
 
         <MapContainer
-          center={[ankara[0], ankara[1]]}
-          zoom={13}
+          center={mapCenter}
+          zoom={mapZoom}
           className="h-full w-full z-0"
         >
           <MapInitializer onInit={(map) => { mapRef.current = map; }} />
-      
+          
+          {/*Harita olaylarını dinleyici bileşen */}
+          <MapEventsHandler setCenter={setMapCenter} setZoom={setMapZoom} />
+          
           <TileLayer
             attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-
           <MapClickHandler
             isSelectingTarget={isSelectingTarget}
             onTargetSelect={handleTargetSelect}
           />
-
           {drones.map((drone) => (
             <DroneMarker
               key={drone.id}
@@ -433,7 +378,6 @@ const Map = () => {
               isSelected={drone.id === selectedDroneId}
             />
           ))}
-
           {getTaskRoutes().map(({ task, progress }) => (
             <div key={`task-${task.id}`}>
               <Polyline
@@ -449,7 +393,6 @@ const Map = () => {
                 dashArray={task.status === "completed" ? "5, 5" : 
                   task.status === "pending" ? "1,5" : "10, 5"}
               />
-
               {progress && (
                 <CircleMarker
                   center={progress.currentPosition}
@@ -472,7 +415,6 @@ const Map = () => {
                   </Tooltip>
                 </CircleMarker>
               )}
-
               {progress &&
                 progress.path.length > 1 &&
                 progress.path.slice(1).map((point, index) => (
@@ -498,7 +440,6 @@ const Map = () => {
           ))}
         </MapContainer>
       </div>
-
       <TaskDialog
         isOpen={isTaskDialogOpen && !isTaskDialogTemporarilyHidden}
         drone={selectedDrone}

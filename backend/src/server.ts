@@ -31,9 +31,9 @@ app.use(cors({
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Limit each IP to 1000 requests per windowMs
-  message: 'Too many requests from this IP'
+  windowMs: 15 * 60 * 1000, // 15 dakikalık bir zaman dilimi
+  max: 1000,                 // Bu süre içinde aynı IP adresinden en fazla 1000 istek kabul et
+  message: 'Too many requests from this IP' // Limit aşılırsa bu mesajı göster
 });
 app.use('/api', limiter);
 
