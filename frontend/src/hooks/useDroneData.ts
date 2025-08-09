@@ -65,7 +65,7 @@ export const useDroneData = () => {
     }
   }, []);
 
-  // İlk yükleme
+
   useEffect(() => {
     loadData();
   }, [loadData]);

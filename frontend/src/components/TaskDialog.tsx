@@ -18,21 +18,32 @@ const TaskDialog: React.FC<TaskDialogProps & {
   const [descriptionError, setDescriptionError] = useState<boolean>(false);
   const [color, setColor] = useState<string>("#0088ff");
 
-  // Drone'un bir sonraki görevinin başlangıç pozisyonunu hesapla
+  const ensureNumber = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') return parseFloat(value) || 0;
+    return 0;
+  };
+
   const getNextTaskStartPosition = (): [number, number, number] => {
     if (!drone) return [0, 0, 0];
 
-    // Bu drone'un beklemedeki veya aktif görevlerini bul
     const droneExistingTasks = tasks
       .filter(t => t.droneId === drone.id && t.status !== 'completed')
       .sort((a, b) => b.id - a.id);
 
     if (droneExistingTasks.length > 0) {
-      // Son görevin hedef pozisyonunu döndür
-      return droneExistingTasks[0].targetPosition;
+      const lastTask = droneExistingTasks[0];
+      return [
+        ensureNumber(lastTask.targetPosition[0]),
+        ensureNumber(lastTask.targetPosition[1]),
+        ensureNumber(lastTask.targetPosition[2])
+      ];
     } else {
-      // Hiç görev yoksa drone'un mevcut pozisyonunu döndür
-      return drone.position;
+      return [
+        ensureNumber(drone.position[0]),
+        ensureNumber(drone.position[1]),
+        ensureNumber(drone.position[2])
+      ];
     }
   };
 
@@ -51,7 +62,6 @@ const TaskDialog: React.FC<TaskDialogProps & {
     return `${day}/${month}/${year} ${hours}:${minutes}:${seconds} - Görev #${droneTaskCount}`;
   };
 
-  // Dialog açıldığında varsayılan açıklamayı ayarla
   useEffect(() => {
     if (isOpen && drone) {
       setDescription(generateDefaultDescription());
@@ -66,7 +76,6 @@ const TaskDialog: React.FC<TaskDialogProps & {
   };
 
   const handleAddTask = () => {
-    // Açıklama validasyonu
     if (!description.trim()) {
       setDescriptionError(true);
       return;
@@ -77,7 +86,6 @@ const TaskDialog: React.FC<TaskDialogProps & {
       return;
     }
 
-    // Başlangıç pozisyonunu hesapla
     const startPosition = getNextTaskStartPosition();
 
     const taskData: Omit<Task, 'id'> = {
@@ -108,7 +116,6 @@ const TaskDialog: React.FC<TaskDialogProps & {
 
   const handleDescriptionChange = (value: string) => {
     setDescription(value);
-    // Kullanıcı yazmaya başladığında hatayı temizle
     if (descriptionError && value.trim()) {
       setDescriptionError(false);
     }

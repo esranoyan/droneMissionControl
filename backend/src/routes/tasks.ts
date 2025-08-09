@@ -3,7 +3,7 @@ import pool from '../config/database';
 
 const router = express.Router();
 
-// GET /api/tasks - Tüm görevleri getir
+// GET - Tüm görevleri getir
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -21,8 +21,16 @@ router.get('/', async (req, res) => {
       id: row.id,
       droneId: row.drone_id,
       droneName: row.drone_name,
-      startPosition: [row.start_position_lat, row.start_position_lng, row.start_position_alt],
-      targetPosition: [row.target_position_lat, row.target_position_lng, row.target_position_alt],
+      startPosition: [
+        parseFloat(row.start_position_lat), 
+        parseFloat(row.start_position_lng), 
+        parseFloat(row.start_position_alt)
+      ],
+      targetPosition: [
+        parseFloat(row.target_position_lat), 
+        parseFloat(row.target_position_lng), 
+        parseFloat(row.target_position_alt)
+      ],
       duration: row.duration,
       description: row.description,
       status: row.status,
@@ -40,7 +48,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/tasks - Yeni görev ekle
+// POST - Yeni görev ekle
 router.post('/', async (req, res) => {
   try {
     const { droneId, droneName, startPosition, targetPosition, duration, description, color } = req.body;
@@ -88,8 +96,16 @@ router.post('/', async (req, res) => {
       id: row.id,
       droneId: row.drone_id,
       droneName: row.drone_name,
-      startPosition: [row.start_position_lat, row.start_position_lng, row.start_position_alt],
-      targetPosition: [row.target_position_lat, row.target_position_lng, row.target_position_alt],
+      startPosition: [
+        parseFloat(row.start_position_lat), 
+        parseFloat(row.start_position_lng), 
+        parseFloat(row.start_position_alt)
+      ],
+      targetPosition: [
+        parseFloat(row.target_position_lat), 
+        parseFloat(row.target_position_lng), 
+        parseFloat(row.target_position_alt)
+      ],
       duration: row.duration,
       description: row.description,
       status: row.status,
@@ -104,34 +120,65 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PATCH /api/tasks/:id/status - Görev durumunu güncelle
+// PATCH - Görev durumunu güncelle
 router.patch('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
     
+    console.log('Status update request:', { id, status });
+    
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ error: 'Geçerli görev ID gerekli' });
+    }
+    
     if (!status || !['pending', 'active', 'completed', 'failed'].includes(status)) {
       return res.status(400).json({ error: 'Geçerli status gerekli (pending, active, completed, failed)' });
     }
 
-    let updateFields = 'status = $1, updated_at = NOW()';
-    let values = [status, id];
-    
-    if (status === 'active') {
-      updateFields = 'status = $1, started_at = NOW(), updated_at = NOW()';
-    } else if (status === 'completed') {
-      updateFields = 'status = $1, completed_at = NOW(), updated_at = NOW()';
+    const existingTask = await pool.query('SELECT * FROM tasks WHERE id = $1', [parseInt(id)]);
+    if (existingTask.rows.length === 0) {
+      return res.status(404).json({ error: 'Görev bulunamadı' });
     }
 
-    const result = await pool.query(`
-      UPDATE tasks 
-      SET ${updateFields}
-      WHERE id = $2
-      RETURNING *
-    `, values);
+    console.log('Mevcut görev:', existingTask.rows[0]);
+
+    let query: string;
+    let values: any[];
+    
+    if (status === 'active') {
+      query = `
+        UPDATE tasks 
+        SET status = $1, started_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING *
+      `;
+      values = [status, parseInt(id)];
+    } else if (status === 'completed') {
+      query = `
+        UPDATE tasks 
+        SET status = $1, completed_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING *
+      `;
+      values = [status, parseInt(id)];
+    } else {
+      query = `
+        UPDATE tasks 
+        SET status = $1
+        WHERE id = $2
+        RETURNING *
+      `;
+      values = [status, parseInt(id)];
+    }
+
+    console.log('Executing query:', query);
+    console.log('With values:', values);
+
+    const result = await pool.query(query, values);
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Görev bulunamadı' });
+      return res.status(404).json({ error: 'Güncelleme başarısız' });
     }
 
     const row = result.rows[0];
@@ -139,23 +186,39 @@ router.patch('/:id/status', async (req, res) => {
       id: row.id,
       droneId: row.drone_id,
       droneName: row.drone_name,
-      startPosition: [row.start_position_lat, row.start_position_lng, row.start_position_alt],
-      targetPosition: [row.target_position_lat, row.target_position_lng, row.target_position_alt],
+      startPosition: [
+        parseFloat(row.start_position_lat), 
+        parseFloat(row.start_position_lng), 
+        parseFloat(row.start_position_alt)
+      ],
+      targetPosition: [
+        parseFloat(row.target_position_lat), 
+        parseFloat(row.target_position_lng), 
+        parseFloat(row.target_position_alt)
+      ],
       duration: row.duration,
       description: row.description,
       status: row.status,
       actualDuration: row.actual_duration,
-      color: row.color
+      color: row.color,
+      createdAt: row.created_at,
+      startedAt: row.started_at,
+      completedAt: row.completed_at
     };
 
+    console.log('Task updated successfully:', task);
     res.json(task);
   } catch (error) {
-    console.error('Görev durumu güncellenirken hata:', error);
-    res.status(500).json({ error: 'Görev durumu güncellenemedi' });
+    console.error('Görev durumu güncellenirken detaylı hata:', error);
+    res.status(500).json({ 
+      error: 'Görev durumu güncellenemedi',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
   }
 });
 
-// POST /api/tasks/:id/progress - Görev ilerlemesi kaydet
+// POST - Görev ilerlemesi kaydet
 router.post('/:id/progress', async (req, res) => {
   try {
     const { id } = req.params;

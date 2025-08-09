@@ -3,10 +3,10 @@ import pool from '../config/database';
 
 const router = express.Router();
 
-// GET /api/server/status - Server durumu
+// GET - Server durumu
 router.get('/status', async (req, res) => {
   try {
-    // Database bağlantısını test et
+    
     const dbResult = await pool.query('SELECT NOW() as current_time');
     
     res.json({
@@ -33,7 +33,7 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// GET /api/server/stats - İstatistikler
+// GET - İstatistikler
 router.get('/stats', async (req, res) => {
   try {
     const [dronesResult, tasksResult, progressResult] = await Promise.all([

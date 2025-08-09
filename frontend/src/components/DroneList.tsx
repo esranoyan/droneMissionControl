@@ -4,8 +4,19 @@ const DroneList: React.FC<DroneListProps> = ({
   drones,
   selectedDroneId,
   onSelectDrone,
-  // onRemoveDrone,
 }) => {
+  const formatPosition = (position: any): [number, number, number] => {
+    if (!position || !Array.isArray(position)) {
+      return [0, 0, 0];
+    }
+    
+    return [
+      typeof position[0] === 'number' ? position[0] : parseFloat(position[0]) || 0,
+      typeof position[1] === 'number' ? position[1] : parseFloat(position[1]) || 0,
+      typeof position[2] === 'number' ? position[2] : parseFloat(position[2]) || 0,
+    ];
+  };
+
   return (
     <div className="mb-6">
       <h3 className="font-semibold mb-2">Unsur Listesi</h3>
@@ -13,44 +24,36 @@ const DroneList: React.FC<DroneListProps> = ({
         <p className="text-gray-500 text-sm">Henüz unsur eklenmemiş</p>
       ) : (
         <ul className="space-y-2">
-          {drones.map((drone) => (
-            <li 
-              key={drone.id} 
-              className={`p-3 rounded shadow-sm cursor-pointer transition-colors ${
-                selectedDroneId === drone.id 
-                  ? 'bg-blue-100 border-2 border-blue-500' 
-                  : 'bg-white hover:bg-gray-50'
-              }`}
-              onClick={() => onSelectDrone(drone.id)}
-            >
-              {/* <div className="flex justify-between items-center">
-                <div className="font-medium">{drone.name}</div>
-                <button
-                  className="text-sm text-red-600 hover:underline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveDrone(drone.id);
-                  }}
-                >
-                  Sil
-                </button>
-              </div> */}
-              <div className="font-medium text-sm">
-                {drone.name}
+          {drones.map((drone) => {
+            const [lat, lng, alt] = formatPosition(drone.position);
+            
+            return (
+              <li 
+                key={drone.id} 
+                className={`p-3 rounded shadow-sm cursor-pointer transition-colors ${
+                  selectedDroneId === drone.id 
+                    ? 'bg-blue-100 border-2 border-blue-500' 
+                    : 'bg-white hover:bg-gray-50'
+                }`}
+                onClick={() => onSelectDrone(drone.id)}
+              >
+                <div className="font-medium text-sm">
+                  {drone.name}
                 </div>
-              <div className="text-xs text-gray-500 mt-1">
-                Konum: [{drone.position[0].toFixed(6)}, {drone.position[1].toFixed(6)}]
-              </div>
-              <div className="text-xs text-gray-500">
-                Yükseklik: {drone.position[2].toFixed(1)}m
-              </div>
-              {drone.isMoving && (
-                <div className="text-xs text-orange-600 mt-1 font-semibold">
-                  🔄 Hareket halinde
+                <div className="text-xs text-gray-500 mt-1">
+                  Konum: [{lat.toFixed(6)}, {lng.toFixed(6)}]
                 </div>
-              )}
-            </li>
-          ))}
+                <div className="text-xs text-gray-500">
+                  Yükseklik: {alt.toFixed(1)}m
+                </div>
+                {drone.isMoving && (
+                  <div className="text-xs text-orange-600 mt-1 font-semibold">
+                    🔄 Hareket halinde
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

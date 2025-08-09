@@ -12,6 +12,18 @@ const TaskList: React.FC<ExtendedTaskListProps> = ({ tasks, onStartTask}) => {
   const activeTasks = tasks.filter(task => task.status === 'active');
   const completedTasks = tasks.filter(task => task.status === 'completed');
 
+  const formatTargetPosition = (targetPosition: any): [number, number, number] => {
+    if (!targetPosition || !Array.isArray(targetPosition)) {
+      return [0, 0, 0];
+    }
+    
+    return [
+      typeof targetPosition[0] === 'number' ? targetPosition[0] : parseFloat(targetPosition[0]) || 0,
+      typeof targetPosition[1] === 'number' ? targetPosition[1] : parseFloat(targetPosition[1]) || 0,
+      typeof targetPosition[2] === 'number' ? targetPosition[2] : parseFloat(targetPosition[2]) || 0,
+    ];
+  };
+
   // Aktif görevler için süre sayacı
   useEffect(() => {
     const interval = setInterval(() => {
@@ -87,25 +99,29 @@ const TaskList: React.FC<ExtendedTaskListProps> = ({ tasks, onStartTask}) => {
                   <ul className="space-y-2">
                     {droneTasks
                       .sort((a, b) => a.id - b.id) // ID'ye göre sırala
-                      .map((task, index) => (
-                      <li key={task.id} className="bg-yellow-50 p-3 rounded shadow-sm border-l-4 border-yellow-400">
-                        <div className="flex justify-between items-start">
-                          <div className="font-medium text-sm">{task.droneName}</div>
-                          <span className="text-xs bg-yellow-200 px-2 py-1 rounded">
-                            Sıra: {index + 1}
-                          </span>
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1">
-                          {task.description}
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          Planlanan süre: {task.duration}s
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Hedef: [{task.targetPosition[0].toFixed(6)}, {task.targetPosition[1].toFixed(6)}, {task.targetPosition[2].toFixed(1)}m]
-                        </div>
-                      </li>
-                    ))}
+                      .map((task, index) => {
+                        const [lat, lng, alt] = formatTargetPosition(task.targetPosition);
+                        
+                        return (
+                          <li key={task.id} className="bg-yellow-50 p-3 rounded shadow-sm border-l-4 border-yellow-400">
+                            <div className="flex justify-between items-start">
+                              <div className="font-medium text-sm">{task.droneName}</div>
+                              <span className="text-xs bg-yellow-200 px-2 py-1 rounded">
+                                Sıra: {index + 1}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-600 mt-1">
+                              {task.description}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Planlanan süre: {task.duration}s
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Hedef: [{lat.toFixed(6)}, {lng.toFixed(6)}, {alt.toFixed(1)}m]
+                            </div>
+                          </li>
+                        );
+                      })}
                   </ul>
                 </div>
               ))}

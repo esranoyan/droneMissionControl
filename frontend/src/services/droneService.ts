@@ -6,7 +6,7 @@ export class DroneService {
   static async getAllDrones(): Promise<Drone[]> {
     try {
       const result = await apiClient.get('/drones');
-      return result.data || result; // Backend response format'ına göre ayarlanabilir
+      return Array.isArray(result) ? result : (result.data || []);
     } catch (error) {
       console.error('Dronelar getirilirken hata:', error);
       throw error;
@@ -25,7 +25,7 @@ export class DroneService {
         }
       });
       
-      return result.data || result;
+      return result;
     } catch (error) {
       console.error('Drone eklenirken hata:', error);
       throw error;
@@ -48,7 +48,7 @@ export class DroneService {
         isMoving
       });
       
-      return result.success !== false;
+      return result !== null && result !== undefined;
     } catch (error) {
       console.error('Drone pozisyonu güncellenirken hata:', error);
       throw error;
@@ -58,8 +58,8 @@ export class DroneService {
   // Drone sil
   static async deleteDrone(droneId: number): Promise<boolean> {
     try {
-      await apiClient.delete(`/drones/${droneId}`);
-      return true;
+      const result = await apiClient.delete(`/drones/${droneId}`);
+      return result.success === true;
     } catch (error) {
       console.error('Drone silinirken hata:', error);
       throw error;

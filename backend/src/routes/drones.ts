@@ -12,20 +12,24 @@ interface DroneRow {
   position_lng: number;
   position_alt: number;
   is_moving: boolean;
-  status: string;
+  status?: string;
 }
 
 function formatDrone(row: DroneRow) {
   return {
     id: row.id,
     name: row.name,
-    position: [row.position_lat, row.position_lng, row.position_alt],
+    position: [
+      parseFloat(row.position_lat.toString()), 
+      parseFloat(row.position_lng.toString()), 
+      parseFloat(row.position_alt.toString())
+    ],
     isMoving: row.is_moving,
-    status: row.status,
+    status: row.status || 'idle',
   };
 }
 
-// 🔧 Test route
+//Test route
 router.get('/test', (req, res) => {
   res.json({
     message: 'Drone routes are working!',
@@ -33,12 +37,11 @@ router.get('/test', (req, res) => {
   });
 });
 
-// GET /api/drones - Tüm drone'ları getir
+// GET - Tüm drone'ları getir
 router.get('/', async (req, res) => {
   try {
-    console.log('🔄 Drones API çağrıldı');
+    console.log('Drones API çağrıldı');
 
-    // Tablonun var olup olmadığını kontrol et
     const tableCheck = await pool.query(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
@@ -60,7 +63,7 @@ router.get('/', async (req, res) => {
     const drones = result.rows.map(formatDrone);
     res.json(drones);
   } catch (error: any) {
-    console.error('❌ Dronelar getirilirken hata:', error);
+    console.error('Dronelar getirilirken hata:', error);
     res.status(500).json({
       error: 'Dronelar getirilemedi',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined,
@@ -68,7 +71,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/drones - Yeni drone ekle
+// POST - Yeni drone ekle
 router.post('/', async (req, res) => {
   try {
     const { name, position }: { name?: string; position?: DronePosition } = req.body;
@@ -100,22 +103,25 @@ router.post('/', async (req, res) => {
 
     const result = await pool.query(
       `
-      INSERT INTO drones (name, position_lat, position_lng, position_alt)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO drones (name, position_lat, position_lng, position_alt, is_moving)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *
     `,
-      [name, lat, lng, alt, 100, 'idle']
+      [name, lat, lng, alt, false]
     );
 
     const drone = formatDrone(result.rows[0]);
     res.status(201).json(drone);
   } catch (error: any) {
     console.error('Drone eklenirken hata:', error);
-    res.status(500).json({ error: 'Drone eklenemedi' });
+    res.status(500).json({ 
+      error: 'Drone eklenemedi',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
   }
 });
 
-// PATCH /api/drones/:id/position - Drone pozisyonunu güncelle
+// PATCH - Drone pozisyonunu güncelle
 router.patch('/:id/position', async (req, res) => {
   try {
     const { id } = req.params;
@@ -168,7 +174,7 @@ router.patch('/:id/position', async (req, res) => {
   }
 });
 
-// DELETE /api/drones/:id - Drone sil
+// DELETE - Drone sil
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;

@@ -42,15 +42,17 @@ export class TaskService {
   }
 
   // Görev durumunu güncelle
-  static async updateTaskStatus(taskId: number, status: 'pending' | 'active' | 'completed'): Promise<boolean> {
-    try {
-      await apiClient.patch(`/tasks/${taskId}/status`, { status });
-      return true;
-    } catch (error) {
-      console.error('Görev durumu güncellenirken hata:', error);
-      throw error;
-    }
+static async updateTaskStatus(taskId: number, status: 'pending' | 'active' | 'completed'): Promise<boolean> {
+  try {
+    console.log('Updating task status:', { taskId, status });
+    const result = await apiClient.patch(`/tasks/${taskId}/status`, { status });
+    console.log('Status update successful:', result);
+    return true;
+  } catch (error) {
+    console.error('Görev durumu güncellenirken hata:', error);
+    throw error;
   }
+}
 
   // Görev ilerlemesi kaydet
   static async recordTaskProgress(

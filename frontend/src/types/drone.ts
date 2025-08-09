@@ -23,7 +23,6 @@ export interface DroneListProps {
   drones: Drone[];
   selectedDroneId: number | null;
   onSelectDrone: (id: number) => void;
-  // onRemoveDrone: (id: number) => void;
 }
 
 export interface TaskListProps {
@@ -45,7 +44,6 @@ export interface ControlPanelProps {
   onAddDrone: () => void;
   onStartTask: (taskId: number) => void;
   onStartAllTasks: () => void;
-  // onRemoveDrone: (id: number) => void;
 }
 
 export interface TaskDialogProps {

@@ -9,7 +9,7 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'drone_db',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || '',
-  max: 20, // Maksimum bağlantı sayısı
+  max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 });
@@ -26,7 +26,7 @@ pool.connect((err, client, release) => {
   }
 });
 
-// Graceful shutdown
+//Database connection cleanup
 process.on('SIGINT', async () => {
   console.log('Closing database connections...');
   await pool.end();
