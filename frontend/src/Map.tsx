@@ -108,7 +108,7 @@ const Map = () => {
     try {
       const map = mapRef.current;
       if (!map) return;
-      const name = `İHA-${String(drones.length + 1).padStart(3, "0")}`;
+      const name = `Drone-${String(drones.length + 1).padStart(3, "0")}`;
       const position: [number, number, number] = [ankara[0], ankara[1], ankara[2]];
       await addDrone(name, position);
       console.log('Yeni drone eklendi:', name);

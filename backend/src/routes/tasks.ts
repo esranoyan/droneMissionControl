@@ -84,7 +84,7 @@ router.post('/', async (req, res) => {
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
     `, [
-      droneId, droneName || `İHA-${droneId}`,
+      droneId, droneName || `Drone-${droneId}`,
       startLat, startLng, startAlt,
       targetLat, targetLng, targetAlt,
       duration, description || 'Yeni görev',
