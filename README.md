@@ -1,6 +1,6 @@
 # Drone Görev Kontrol Sistemi
 
-Drone Görev Kontrol Sistemi, drone görevlerini verimli bir şekilde planlamak, yürütmek ve izlemek için tasarlanmış web tabanlı bir uygulamadır.
+Drone Görev Kontrol Sistemi; drone görevlerini verimli bir şekilde planlamak, yürütmek ve izlemek için tasarlanmış web tabanlı bir uygulamadır.
 
 ![Proje Arayüzü](./images/interface.png)
 
@@ -19,11 +19,11 @@ Drone Görev Kontrol Sistemi, drone görevlerini verimli bir şekilde planlamak,
 ## Kurulum ve Çalıştırma
 
 ### Backend
-cd backend
-npm install
-npm run dev
+- cd backend
+- npm install
+- npm run dev
 
 ### Frontend
-cd frontend
-npm install
-npm run dev
+- cd frontend
+- npm install
+- npm run dev
