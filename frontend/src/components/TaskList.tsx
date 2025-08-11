@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { type TaskListProps } from "../types/drone";
 
 interface ExtendedTaskListProps extends TaskListProps {
-  onStartAllTasks?: () => void;
+  onStartTask: (taskId: number) => void;
 }
 
 const TaskList: React.FC<ExtendedTaskListProps> = ({ tasks, onStartTask}) => {

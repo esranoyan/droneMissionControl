@@ -9,7 +9,6 @@ import { type DroneTaskQueue, type Task, type TaskProgress } from "./types/drone
 import { useDroneData } from "./hooks/useDroneData";
 import { DroneService } from "./services/droneService";
 import { TaskService } from "./services/taskService";
-import { MissionService } from "./services/missionService";
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -90,11 +89,9 @@ const Map = () => {
   const [isSelectingTarget, setIsSelectingTarget] = useState(false);
   const [targetSelectCallback, setTargetSelectCallback] =
     useState<((position: [number, number]) => void) | null>(null);
-
-  // Simülasyon ile ilgili state'ler
   const [taskProgresses, setTaskProgresses] = useState<TaskProgress[]>([]);
   const [droneTaskQueues, setDroneTaskQueues] = useState<DroneTaskQueue[]>([]);
-  const [currentMissionSession, setCurrentMissionSession] = useState<number | null>(null);
+  const [currentMissionSession] = useState<number | null>(null);
 
   // Hata gösterimi
   useEffect(() => {
@@ -278,25 +275,6 @@ const Map = () => {
     }
   };
 
-  const handleStartAllTasks = async () => {
-    try {
-      if (!currentMissionSession) {
-        const session = await MissionService.createMissionSession(`Mission ${new Date().toLocaleString()}`, 'Toplu görev başlatma');
-        setCurrentMissionSession(session.id);
-        await MissionService.updateSessionStatus(session.id, 'running');
-      }
-      const pendingTasks = tasks.filter(t => t.status === 'pending');
-      for (const task of pendingTasks) {
-        setTimeout(() => {
-          handleStartTask(task.id);
-        }, task.id % 1000);
-      }
-      console.log(`${pendingTasks.length} görev başlatıldı`);
-    } catch (error) {
-      console.error('Toplu görev başlatma hatası:', error);
-    }
-  };
-
   const handleTargetSelect = (position: [number, number]) => {
     if (targetSelectCallback) {
       targetSelectCallback(position);
@@ -334,7 +312,6 @@ const Map = () => {
         onAddDrone={handleAddDrone}
         onAddTask={() => setIsTaskDialogOpen(true)}
         onStartTask={handleStartTask}
-        onStartAllTasks={handleStartAllTasks}
       />
       <div className="w-3/4 relative">
         {error && (

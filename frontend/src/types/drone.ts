@@ -43,7 +43,6 @@ export interface ControlPanelProps {
   onAddTask: (event: React.MouseEvent<HTMLButtonElement>) => void;
   onAddDrone: () => void;
   onStartTask: (taskId: number) => void;
-  onStartAllTasks: () => void;
 }
 
 export interface TaskDialogProps {
